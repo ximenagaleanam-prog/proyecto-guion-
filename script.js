@@ -1,6 +1,7 @@
 document.addEventListener('DOMContentLoaded', () => {
     const textoGuion = document.getElementById('texto-guion');
-    const idiomaSelector = document.getElementById('idioma-analisis'); // NUEVO SELECTOR
+    const archivoGuion = document.getElementById('archivo-guion'); // NUEVO: Archivo input
+    const idiomaSelector = document.getElementById('idioma-analisis');
     const analizarBtn = document.getElementById('analizar-btn');
     const resultadosSection = document.getElementById('resultados');
     const listaPalabras = document.getElementById('lista-palabras');
@@ -8,8 +9,36 @@ document.addEventListener('DOMContentLoaded', () => {
     const generarSugerenciasBtn = document.getElementById('generar-sugerencias-btn');
     const textoSugerencias = document.getElementById('texto-sugerencias');
 
-    // --- LISTAS DE STOPWORDS AMPLIADAS ---
-    // Listas completas de stopwords para ambos idiomas
+    // --- LÓGICA DE LECTURA DE ARCHIVOS (NUEVA FUNCIÓN) ---
+    archivoGuion.addEventListener('change', (event) => {
+        const file = event.target.files[0];
+        if (!file) {
+            return;
+        }
+
+        const reader = new FileReader();
+
+        // Cuando el archivo se carga completamente
+        reader.onload = (e) => {
+            // Coloca el contenido del archivo en el área de texto
+            textoGuion.value = e.target.result;
+            alert(`Archivo "${file.name}" cargado con éxito.`);
+            // Limpia la selección del archivo para poder cargar el mismo de nuevo si es necesario
+            archivoGuion.value = ''; 
+        };
+
+        // Si hay un error de lectura
+        reader.onerror = () => {
+            alert('Error al leer el archivo.');
+        };
+
+        // Inicia la lectura del archivo como texto
+        reader.readAsText(file);
+    });
+    // --- FIN DE LÓGICA DE LECTURA DE ARCHIVOS ---
+
+
+    // --- LISTAS DE STOPWORDS (SIN CAMBIOS) ---
     const stopwords_es = new Set([
         'el', 'la', 'los', 'las', 'un', 'una', 'unos', 'unas', 
         'y', 'e', 'o', 'u', 'ni', 'pero', 'mas', 'sino', 'porque', 
@@ -43,25 +72,23 @@ document.addEventListener('DOMContentLoaded', () => {
         'own', 'same', 'too', 'very', 's', 't', 'just', 'don', 'shouldn'
     ]);
 
-    // Función auxiliar para obtener la lista de stopwords según el idioma seleccionado
     function getStopwords(idioma) {
         return idioma === 'en' ? stopwords_en : stopwords_es;
     }
 
 
-    // Manejar el envío del formulario para analizar el guion
+    // --- LÓGICA DE ANÁLISIS (SIN CAMBIOS) ---
     analizarBtn.addEventListener('click', (e) => {
         e.preventDefault(); 
 
         const guion = textoGuion.value.trim();
-        const idiomaSeleccionado = idiomaSelector.value; // CAPTURAR EL IDIOMA
+        const idiomaSeleccionado = idiomaSelector.value;
         
         if (guion.length === 0) {
             alert('Por favor, pega o sube un guion para analizar.');
             return;
         }
 
-        // Ejecutar el análisis, pasando el idioma seleccionado
         const analisis = analizarTextoGuion(guion, idiomaSeleccionado);
         
         mostrarResultados(analisis);
@@ -70,17 +97,12 @@ document.addEventListener('DOMContentLoaded', () => {
         resultadosSection.scrollIntoView({ behavior: 'smooth' }); 
     });
 
-    /**
-     * Función principal para analizar el texto del guion.
-     * Ahora acepta el parámetro 'idioma'.
-     */
     function analizarTextoGuion(texto, idioma) {
-        const stopwords = getStopwords(idioma); // OBTENER LA LISTA CORRECTA
+        const stopwords = getStopwords(idioma);
 
-        // --- Análisis de Palabras Repetidas ---
+        // Análisis de Palabras Repetidas
         const frecuenciaPalabras = {};
         const textoLimpio = texto.toLowerCase().replace(/[\.,\/#!$%\^&\*;:{}=\-_`~()¡¿?"']/g, ' ');
-        // Filtrar por longitud y excluir las stopwords del idioma seleccionado
         const palabras = textoLimpio.split(/\s+/).filter(word => word.length > 2 && !stopwords.has(word));
 
         palabras.forEach(palabra => {
@@ -92,13 +114,12 @@ document.addEventListener('DOMContentLoaded', () => {
             .slice(0, 10); 
 
 
-        // --- Análisis de Personajes Recurrentes (Sin cambios en lógica) ---
+        // Análisis de Personajes Recurrentes
         const frecuenciaPersonajes = {};
         const lineas = texto.split('\n');
 
         lineas.forEach(linea => {
             const lineaTrim = linea.trim();
-            // Heurística: Líneas en MAYÚSCULAS que no parecen ser encabezados de escena o transiciones.
             if (lineaTrim === lineaTrim.toUpperCase() && lineaTrim.length > 2 && !/\d/.test(lineaTrim)) {
                 
                 if (!['EXT.', 'INT.', 'FADE IN', 'CUT TO', 'DÍA', 'NOCHE', 'TRANSICIÓN', 'FADE OUT', 'APERTURA', 'CIERRE', 'TITLE'].some(c => lineaTrim.startsWith(c))) {
@@ -117,7 +138,6 @@ document.addEventListener('DOMContentLoaded', () => {
         return { topPalabras, topPersonajes };
     }
 
-    // El resto de las funciones (mostrarResultados, generarSugerenciasBtn) no necesitan cambios.
     function mostrarResultados(analisis) {
         listaPalabras.innerHTML = '';
         listaPersonajes.innerHTML = '';
@@ -143,7 +163,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    // --- Funcionalidad de Sugerencias (Simulada) ---
+    // Funcionalidad de Sugerencias (Simulada)
     generarSugerenciasBtn.addEventListener('click', () => {
         textoSugerencias.innerHTML = '<p>Analizando el texto con la IA... ⏳</p>';
 
