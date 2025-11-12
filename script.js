@@ -1,5 +1,6 @@
 document.addEventListener('DOMContentLoaded', () => {
     const textoGuion = document.getElementById('texto-guion');
+    const idiomaSelector = document.getElementById('idioma-analisis'); // NUEVO SELECTOR
     const analizarBtn = document.getElementById('analizar-btn');
     const resultadosSection = document.getElementById('resultados');
     const listaPalabras = document.getElementById('lista-palabras');
@@ -8,8 +9,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const textoSugerencias = document.getElementById('texto-sugerencias');
 
     // --- LISTAS DE STOPWORDS AMPLIADAS ---
-
-    // Stopwords en español (incluye artículos, preposiciones, pronombres y conjunciones)
+    // Listas completas de stopwords para ambos idiomas
     const stopwords_es = new Set([
         'el', 'la', 'los', 'las', 'un', 'una', 'unos', 'unas', 
         'y', 'e', 'o', 'u', 'ni', 'pero', 'mas', 'sino', 'porque', 
@@ -26,7 +26,6 @@ document.addEventListener('DOMContentLoaded', () => {
         'otros', 'otras', 'tan', 'tal', 'tales', 'cada', 'cierto', 'cierta'
     ]);
 
-    // Stopwords en inglés (incluye artículos, preposiciones, pronombres y conjunciones)
     const stopwords_en = new Set([
         'the', 'a', 'an', 'and', 'or', 'but', 'nor', 'yet', 'so', 
         'for', 'of', 'to', 'in', 'on', 'at', 'with', 'from', 'by', 
@@ -44,25 +43,26 @@ document.addEventListener('DOMContentLoaded', () => {
         'own', 'same', 'too', 'very', 's', 't', 'just', 'don', 'shouldn'
     ]);
 
-    // Usaremos la lista en español por defecto, pero se puede añadir un selector de idioma en el HTML
-    // Para cambiar a inglés, simplemente se reemplazaría `stopwords_es` por `stopwords_en` aquí:
-    const stopwords = stopwords_es; 
-    
-    // Si quieres permitir al usuario elegir el idioma, deberías añadir un menú
-    // y cambiar la variable 'stopwords' al cargar el guion.
+    // Función auxiliar para obtener la lista de stopwords según el idioma seleccionado
+    function getStopwords(idioma) {
+        return idioma === 'en' ? stopwords_en : stopwords_es;
+    }
+
 
     // Manejar el envío del formulario para analizar el guion
     analizarBtn.addEventListener('click', (e) => {
         e.preventDefault(); 
 
         const guion = textoGuion.value.trim();
+        const idiomaSeleccionado = idiomaSelector.value; // CAPTURAR EL IDIOMA
         
         if (guion.length === 0) {
             alert('Por favor, pega o sube un guion para analizar.');
             return;
         }
 
-        const analisis = analizarTextoGuion(guion);
+        // Ejecutar el análisis, pasando el idioma seleccionado
+        const analisis = analizarTextoGuion(guion, idiomaSeleccionado);
         
         mostrarResultados(analisis);
         
@@ -72,13 +72,15 @@ document.addEventListener('DOMContentLoaded', () => {
 
     /**
      * Función principal para analizar el texto del guion.
+     * Ahora acepta el parámetro 'idioma'.
      */
-    function analizarTextoGuion(texto) {
+    function analizarTextoGuion(texto, idioma) {
+        const stopwords = getStopwords(idioma); // OBTENER LA LISTA CORRECTA
+
         // --- Análisis de Palabras Repetidas ---
         const frecuenciaPalabras = {};
-        // Limpiar texto: quitar puntuación, convertir a minúsculas
         const textoLimpio = texto.toLowerCase().replace(/[\.,\/#!$%\^&\*;:{}=\-_`~()¡¿?"']/g, ' ');
-        // Filtrar por longitud y excluir las stopwords
+        // Filtrar por longitud y excluir las stopwords del idioma seleccionado
         const palabras = textoLimpio.split(/\s+/).filter(word => word.length > 2 && !stopwords.has(word));
 
         palabras.forEach(palabra => {
@@ -90,7 +92,7 @@ document.addEventListener('DOMContentLoaded', () => {
             .slice(0, 10); 
 
 
-        // --- Análisis de Personajes Recurrentes (Sin cambios) ---
+        // --- Análisis de Personajes Recurrentes (Sin cambios en lógica) ---
         const frecuenciaPersonajes = {};
         const lineas = texto.split('\n');
 
@@ -108,3 +110,58 @@ document.addEventListener('DOMContentLoaded', () => {
         });
         
         const topPersonajes = Object.entries(frecuenciaPersonajes)
+            .sort(([, a], [, b]) => b - a)
+            .slice(0, 5); 
+
+
+        return { topPalabras, topPersonajes };
+    }
+
+    // El resto de las funciones (mostrarResultados, generarSugerenciasBtn) no necesitan cambios.
+    function mostrarResultados(analisis) {
+        listaPalabras.innerHTML = '';
+        listaPersonajes.innerHTML = '';
+
+        if (analisis.topPalabras.length > 0) {
+            analisis.topPalabras.forEach(([palabra, count]) => {
+                const li = document.createElement('li');
+                li.innerHTML = `<strong>${palabra}</strong>: ${count} veces`;
+                listaPalabras.appendChild(li);
+            });
+        } else {
+             listaPalabras.innerHTML = '<li>No se encontraron palabras relevantes.</li>';
+        }
+
+        if (analisis.topPersonajes.length > 0) {
+            analisis.topPersonajes.forEach(([personaje, count]) => {
+                const li = document.createElement('li');
+                li.innerHTML = `<strong>${personaje}</strong>: ${count} apariciones/diálogos`;
+                listaPersonajes.appendChild(li);
+            });
+        } else {
+            listaPersonajes.innerHTML = '<li>No se identificaron personajes (asegúrate de que los nombres estén en MAYÚSCULAS).</li>';
+        }
+    }
+
+    // --- Funcionalidad de Sugerencias (Simulada) ---
+    generarSugerenciasBtn.addEventListener('click', () => {
+        textoSugerencias.innerHTML = '<p>Analizando el texto con la IA... ⏳</p>';
+
+        setTimeout(() => {
+            const guion = textoGuion.value.trim();
+            if (guion.length < 50) {
+                textoSugerencias.innerHTML = '<p>El guion es demasiado corto. Sugerencia: Intenta pegar un texto más largo (más de 50 palabras) para un feedback significativo.</p>';
+                return;
+            }
+            
+            const sugerencias = `
+                <p><strong>Feedback de la IA sobre tu texto:</strong></p>
+                <p>1. <strong>Concentración de Diálogo:</strong> El personaje con más diálogos domina gran parte de la interacción. Considera si este desequilibrio sirve a tu historia o si necesitas repartir el peso narrativo.</p>
+                <p>2. <strong>Frecuencia de Palabras:</strong> El análisis excluyó conjunciones y artículos. Las palabras restantes con alta frecuencia (como "Oscuridad", "Desesperación", o un objeto clave) son esenciales para el tema de tu guion.</p>
+                <p>3. <strong>Ritmo de Escena:</strong> Si observas muchas líneas de acción cortas seguidas, el ritmo puede ser frenético. Para variar, intercala descripciones sensoriales más largas.</p>
+                <p><em>*Esta es una sugerencia simulada. Para un análisis real, se requeriría una integración con una API de IA.</em></p>
+            `;
+            textoSugerencias.innerHTML = sugerencias;
+        }, 2500); 
+    });
+});
