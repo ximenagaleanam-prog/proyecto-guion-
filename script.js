@@ -1,6 +1,6 @@
 document.addEventListener('DOMContentLoaded', () => {
     const textoGuion = document.getElementById('texto-guion');
-    const archivoGuion = document.getElementById('archivo-guion'); // NUEVO: Archivo input
+    const archivoGuion = document.getElementById('archivo-guion');
     const idiomaSelector = document.getElementById('idioma-analisis');
     const analizarBtn = document.getElementById('analizar-btn');
     const resultadosSection = document.getElementById('resultados');
@@ -9,36 +9,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const generarSugerenciasBtn = document.getElementById('generar-sugerencias-btn');
     const textoSugerencias = document.getElementById('texto-sugerencias');
 
-    // --- LÓGICA DE LECTURA DE ARCHIVOS (NUEVA FUNCIÓN) ---
-    archivoGuion.addEventListener('change', (event) => {
-        const file = event.target.files[0];
-        if (!file) {
-            return;
-        }
-
-        const reader = new FileReader();
-
-        // Cuando el archivo se carga completamente
-        reader.onload = (e) => {
-            // Coloca el contenido del archivo en el área de texto
-            textoGuion.value = e.target.result;
-            alert(`Archivo "${file.name}" cargado con éxito.`);
-            // Limpia la selección del archivo para poder cargar el mismo de nuevo si es necesario
-            archivoGuion.value = ''; 
-        };
-
-        // Si hay un error de lectura
-        reader.onerror = () => {
-            alert('Error al leer el archivo.');
-        };
-
-        // Inicia la lectura del archivo como texto
-        reader.readAsText(file);
-    });
-    // --- FIN DE LÓGICA DE LECTURA DE ARCHIVOS ---
-
-
-    // --- LISTAS DE STOPWORDS (SIN CAMBIOS) ---
+    // --- LISTAS DE STOPWORDS ---
     const stopwords_es = new Set([
         'el', 'la', 'los', 'las', 'un', 'una', 'unos', 'unas', 
         'y', 'e', 'o', 'u', 'ni', 'pero', 'mas', 'sino', 'porque', 
@@ -77,7 +48,31 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
 
-    // --- LÓGICA DE ANÁLISIS (SIN CAMBIOS) ---
+    // --- LÓGICA DE LECTURA DE ARCHIVOS (CON SOLUCIÓN UTF-8) ---
+    archivoGuion.addEventListener('change', (event) => {
+        const file = event.target.files[0];
+        if (!file) {
+            return;
+        }
+
+        const reader = new FileReader();
+
+        reader.onload = (e) => {
+            textoGuion.value = e.target.result;
+            alert(`Archivo "${file.name}" cargado con éxito.`);
+            archivoGuion.value = ''; 
+        };
+
+        reader.onerror = () => {
+            alert('Error al leer el archivo.');
+        };
+
+        // **CLAVE:** Forzar la codificación UTF-8 para evitar problemas de símbolos
+        reader.readAsText(file, 'UTF-8');
+    });
+
+
+    // --- LÓGICA DE ANÁLISIS ---
     analizarBtn.addEventListener('click', (e) => {
         e.preventDefault(); 
 
@@ -114,7 +109,7 @@ document.addEventListener('DOMContentLoaded', () => {
             .slice(0, 10); 
 
 
-        // Análisis de Personajes Recurrentes
+        // Análisis de Personajes Recurrentes (Heurística simple: líneas en MAYÚSCULAS)
         const frecuenciaPersonajes = {};
         const lineas = texto.split('\n');
 
@@ -163,7 +158,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    // Funcionalidad de Sugerencias (Simulada)
+    // --- Funcionalidad de Sugerencias (Simulada) ---
     generarSugerenciasBtn.addEventListener('click', () => {
         textoSugerencias.innerHTML = '<p>Analizando el texto con la IA... ⏳</p>';
 
