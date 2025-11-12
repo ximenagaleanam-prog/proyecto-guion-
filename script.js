@@ -9,7 +9,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const generarSugerenciasBtn = document.getElementById('generar-sugerencias-btn');
     const textoSugerencias = document.getElementById('texto-sugerencias');
 
-    // --- LISTAS DE STOPWORDS ---
+    // --- LISTAS DE STOPWORDS (SIN CAMBIOS) ---
     const stopwords_es = new Set([
         'el', 'la', 'los', 'las', 'un', 'una', 'unos', 'unas', 
         'y', 'e', 'o', 'u', 'ni', 'pero', 'mas', 'sino', 'porque', 
@@ -48,27 +48,74 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
 
-    // --- LÓGICA DE LECTURA DE ARCHIVOS (CON SOLUCIÓN UTF-8) ---
+    // --- LÓGICA DE LECTURA DE ARCHIVOS (SOPORTE DOCX Y TXT) ---
     archivoGuion.addEventListener('change', (event) => {
         const file = event.target.files[0];
         if (!file) {
             return;
         }
 
-        const reader = new FileReader();
+        const fileName = file.name.toLowerCase();
 
-        reader.onload = (e) => {
-            textoGuion.value = e.target.result;
-            alert(`Archivo "${file.name}" cargado con éxito.`);
-            archivoGuion.value = ''; 
-        };
+        // 1. Manejar archivos .TXT
+        if (fileName.endsWith('.txt')) {
+            const reader = new FileReader();
 
-        reader.onerror = () => {
-            alert('Error al leer el archivo.');
-        };
+            reader.onload = (e) => {
+                textoGuion.value = e.target.result;
+                alert(`Archivo "${file.name}" (.txt) cargado con éxito.`);
+                archivoGuion.value = '';
+            };
+            reader.onerror = () => {
+                alert('Error al leer el archivo .txt.');
+            };
+            // Leer como texto con UTF-8
+            reader.readAsText(file, 'UTF-8');
+        } 
+        
+        // 2. Manejar archivos .DOCX (Usando Mammoth.js)
+        else if (fileName.endsWith('.docx')) {
+            // Verificamos si Mammoth está disponible (por si falla la CDN)
+            if (typeof mammoth === 'undefined') {
+                alert('Error: La librería Mammoth.js no se ha cargado correctamente. No se puede leer el archivo .docx.');
+                archivoGuion.value = '';
+                return;
+            }
 
-        // **CLAVE:** Forzar la codificación UTF-8 para evitar problemas de símbolos
-        reader.readAsText(file, 'UTF-8');
+            const reader = new FileReader();
+            
+            reader.onload = (e) => {
+                // Leer el archivo como ArrayBuffer (datos binarios)
+                const arrayBuffer = e.target.result;
+                
+                // Usar Mammoth para convertir el ArrayBuffer a Texto
+                mammoth.extractRawText({ arrayBuffer: arrayBuffer })
+                    .then(result => {
+                        textoGuion.value = result.value; 
+                        alert(`Archivo "${file.name}" (.docx) cargado con éxito.`);
+                    })
+                    .catch(err => {
+                        console.error('Error de Mammoth:', err);
+                        alert('Error al procesar el archivo .docx. Asegúrate de que no esté corrupto o cifrado.');
+                    })
+                    .finally(() => {
+                        archivoGuion.value = '';
+                    });
+            };
+            
+            reader.onerror = () => {
+                alert('Error al leer el archivo .docx.');
+            };
+
+            // Leer como ArrayBuffer para Mammoth
+            reader.readAsArrayBuffer(file); 
+        } 
+        
+        // 3. Manejar otros tipos de archivos
+        else {
+            alert('Tipo de archivo no soportado. Por favor, usa .txt o .docx.');
+            archivoGuion.value = '';
+        }
     });
 
 
@@ -109,7 +156,7 @@ document.addEventListener('DOMContentLoaded', () => {
             .slice(0, 10); 
 
 
-        // Análisis de Personajes Recurrentes (Heurística simple: líneas en MAYÚSCULAS)
+        // Análisis de Personajes Recurrentes
         const frecuenciaPersonajes = {};
         const lineas = texto.split('\n');
 
@@ -158,7 +205,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    // --- Funcionalidad de Sugerencias (Simulada) ---
+    // Funcionalidad de Sugerencias (Simulada)
     generarSugerenciasBtn.addEventListener('click', () => {
         textoSugerencias.innerHTML = '<p>Analizando el texto con la IA... ⏳</p>';
 
