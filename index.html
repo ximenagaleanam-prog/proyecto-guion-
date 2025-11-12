@@ -20,8 +20,8 @@
                 <textarea id="texto-guion" placeholder="Pega aquí el texto completo de tu guion..." rows="15" cols="80"></textarea>
                 <br>
                 
-                <label for="archivo-guion">O sube un archivo (opcional):</label>
-                <input type="file" id="archivo-guion" accept=".txt">
+                <label for="archivo-guion">O sube un archivo (solo .txt o .docx):</label>
+                <input type="file" id="archivo-guion" accept=".txt, .docx">
                 <br>
 
                 <label for="idioma-analisis">Idioma del Guion:</label>
@@ -34,7 +34,7 @@
                 <button type="submit" id="analizar-btn">✨ Analizar Guion</button>
             </form>
             
-            <p class="nota-importante">**Nota:** El análisis se realizará sobre el texto de la caja, excluyendo *stopwords* según el idioma seleccionado.</p>
+            <p class="nota-importante">**Nota:** El análisis se realizará sobre el texto, excluyendo *stopwords* según el idioma seleccionado.</p>
         </section>
 
         <hr>
@@ -68,6 +68,8 @@
     <footer>
         <p>&copy; 2025 GuionAI. Herramienta de análisis de texto para escritores de cine.</p>
     </footer>
+
+    <script src="https://cdn.jsdelivr.net/npm/mammoth@1.6.0/mammoth.browser.min.js"></script> 
 
     <script src="script.js"></script>
 </body>
