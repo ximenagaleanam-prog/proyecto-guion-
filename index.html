@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🎬 Analizador de Guiones de Películas</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <header>
+        <h1>GuionAI 🤖</h1>
+        <p>Análisis de Frecuencia y Estructura de Guiones de Cine</p>
+    </header>
+
+    <main>
+        <section id="carga-guion">
+            <h2>Sube o Pega tu Guion</h2>
+            
+            <form id="formulario-guion">
+                <textarea id="texto-guion" placeholder="Pega aquí el texto completo de tu guion..." rows="15" cols="80"></textarea>
+                <br>
+                <label for="archivo-guion">O sube un archivo (opcional):</label>
+                <input type="file" id="archivo-guion" accept=".txt">
+                <br>
+                <button type="submit" id="analizar-btn">✨ Analizar Guion</button>
+            </form>
+            
+            <p class="nota-importante">**Nota:** El análisis se realizará sobre el texto de la caja.</p>
+        </section>
+
+        <hr>
+
+        <section id="resultados" style="display: none;">
+            <h2>📊 Resultados del Análisis</h2>
+            
+            <div id="palabras-repetidas">
+                <h3>Palabras Más Repetidas</h3>
+                <ul id="lista-palabras">
+                    </ul>
+            </div>
+
+            <div id="personajes-recurrentes">
+                <h3>Personajes con Más Diálogos</h3>
+                <ul id="lista-personajes">
+                    </ul>
+            </div>
+
+            <hr>
+
+            <div id="sugerencias">
+                <h3>✍️ Sugerencias de Mejora</h3>
+                <button id="generar-sugerencias-btn">Solicitar Sugerencias</button>
+                <div id="texto-sugerencias">
+                    </div>
+            </div>
+        </section>
+    </main>
+
+    <footer>
+        <p>&copy; 2025 GuionAI. Herramienta de análisis de texto para escritores de cine.</p>
+    </footer>
+
+    <script src="script.js"></script>
+</body>
+</html>
