@@ -9,7 +9,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const generarSugerenciasBtn = document.getElementById('generar-sugerencias-btn');
     const textoSugerencias = document.getElementById('texto-sugerencias');
 
-    // --- LISTAS DE STOPWORDS (SIN CAMBIOS) ---
+    // --- LISTAS DE STOPWORDS ---
     const stopwords_es = new Set([
         'el', 'la', 'los', 'las', 'un', 'una', 'unos', 'unas', 
         'y', 'e', 'o', 'u', 'ni', 'pero', 'mas', 'sino', 'porque', 
@@ -26,6 +26,7 @@ document.addEventListener('DOMContentLoaded', () => {
         'otros', 'otras', 'tan', 'tal', 'tales', 'cada', 'cierto', 'cierta'
     ]);
 
+    // LISTA DE STOPWORDS EN INGLÉS ACTUALIZADA: incluye contracciones comunes.
     const stopwords_en = new Set([
         'the', 'a', 'an', 'and', 'or', 'but', 'nor', 'yet', 'so', 
         'for', 'of', 'to', 'in', 'on', 'at', 'with', 'from', 'by', 
@@ -40,7 +41,12 @@ document.addEventListener('DOMContentLoaded', () => {
         'under', 'again', 'further', 'then', 'once', 'here', 'there', 
         'when', 'where', 'why', 'how', 'all', 'any', 'both', 'each', 'few', 
         'more', 'most', 'other', 'some', 'such', 'no', 'nor', 'not', 'only', 
-        'own', 'same', 'too', 'very', 's', 't', 'just', 'don', 'shouldn'
+        'own', 'same', 'too', 'very', 
+        
+        // Contracciónes y formas cortas añadidas
+        's', 't', 'just', 'don', 'shouldn', 've', 'll', 'm', 're', 
+        'isn', 'wasn', 'weren', 'haven', 'hasn', 'hadn', 'won', 'shan', 
+        'wouldn', 'couldn', 'mightn', 'mustn', 'd', 'ain'
     ]);
 
     function getStopwords(idioma) {
@@ -144,6 +150,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         // Análisis de Palabras Repetidas
         const frecuenciaPalabras = {};
+        // La sustitución del apóstrofo por un espacio ayuda a separar las partes de la contracción (ej: can't -> can t)
         const textoLimpio = texto.toLowerCase().replace(/[\.,\/#!$%\^&\*;:{}=\-_`~()¡¿?"']/g, ' ');
         const palabras = textoLimpio.split(/\s+/).filter(word => word.length > 2 && !stopwords.has(word));
 
