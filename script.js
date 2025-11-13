@@ -48,6 +48,10 @@ document.addEventListener('DOMContentLoaded', () => {
         'more', 'most', 'other', 'some', 'such', 'no', 'nor', 'not', 'only', 
         'own', 'same', 'too', 'very', 
         
+        // Preposiciones, Adverbios y Conectores de Movimiento AÑADIDOS
+        'into', 'back', 'through', 'toward', 'towards', 'onto', 'upon', 'within', 
+        'without', 'while', 'when', 'since', 'until', 'before', 'after', 
+        
         // Contracciónes completas y negaciones
         'just', 'don', 'shouldn', 'isn', 'wasn', 'weren', 'haven', 
         'hasn', 'hadn', 'won', 'shan', 'wouldn', 'couldn', 'mightn', 
@@ -227,7 +231,7 @@ document.addEventListener('DOMContentLoaded', () => {
             .slice(0, 10); 
 
 
-        // --- 3. Análisis de Oraciones Clave (MEJORADO) ---
+        // --- 3. Análisis de Oraciones Clave ---
         const oraciones = texto.match(/[^\.!\?]+[\.!\?]/g) || [];
         const top5Palabras = topPalabras.map(([word]) => word);
         const oracionesClavePonderadas = [];
@@ -350,7 +354,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 <p><strong>Feedback de la IA sobre tu texto:</strong></p>
                 <p>1. <strong>Diálogo Clave:</strong> Revisa los diálogos clave extraídos. Estos suelen ser monólogos o puntos de inflexión. ¿Son lo suficientemente potentes para justificar su longitud?</p>
                 <p>2. <strong>Oraciones Clave:</strong> La heurística priorizó frases largas con palabras frecuentes y puntuación fuerte. Estas frases marcan el tono y el tema. ¿Reflejan la intención de tu escena?</p>
-                <p>3. <strong>Frecuencia de Palabras:</strong> Las palabras de alta frecuencia ahora excluyen formatos y contracciones. Los términos restantes son el esqueleto temático de tu guion.</p>
+                <p>3. <strong>Frecuencia de Palabras:</strong> El filtrado ha eliminado preposiciones comunes como 'into' y 'back', enfocando el análisis en los sustantivos y verbos más significativos. Los términos restantes son el esqueleto temático de tu guion.</p>
                 <p><em>*Esta es una sugerencia simulada. Para un análisis real, se requeriría una integración con una API de IA.</em></p>
             `;
             textoSugerencias.innerHTML = sugerencias;
