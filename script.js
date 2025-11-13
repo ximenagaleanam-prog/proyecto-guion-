@@ -26,7 +26,7 @@ document.addEventListener('DOMContentLoaded', () => {
         'otros', 'otras', 'tan', 'tal', 'tales', 'cada', 'cierto', 'cierta'
     ]);
 
-    // LISTA DE STOPWORDS EN INGLÉS ACTUALIZADA: Conserva las contracciones como palabras enteras.
+    // LISTA DE STOPWORDS EN INGLÉS: Incluye contracciones completas como palabras a filtrar.
     const stopwords_en = new Set([
         'the', 'a', 'an', 'and', 'or', 'but', 'nor', 'yet', 'so', 
         'for', 'of', 'to', 'in', 'on', 'at', 'with', 'from', 'by', 
@@ -43,10 +43,16 @@ document.addEventListener('DOMContentLoaded', () => {
         'more', 'most', 'other', 'some', 'such', 'no', 'nor', 'not', 'only', 
         'own', 'same', 'too', 'very', 
         
-        // Contracciónes parciales eliminadas. Solo mantenemos las palabras completas:
+        // Contracciónes completas para filtrar como palabras enteras
         'just', 'don', 'shouldn', 'isn', 'wasn', 'weren', 'haven', 
         'hasn', 'hadn', 'won', 'shan', 'wouldn', 'couldn', 'mightn', 
-        'mustn', 'ain'
+        'mustn', 'ain', 
+        
+        // Contratos específicos que suelen aparecer:
+        'its', 'it\'s', 'he\'s', 'she\'s', 'we\'re', 'they\'re', 'i\'m', 'you\'re', 
+        'i\'ve', 'you\'ve', 'we\'ve', 'they\'ve', 'i\'ll', 'you\'ll', 'he\'ll', 'she\'ll', 
+        'we\'ll', 'they\'ll', 'can\'t', 'won\'t', 'don\'t', 'doesn\'t', 'didn\'t', 
+        'couldn\'t', 'wouldn\'t', 'shouldn\'t', 'cont\'d' // Abrev. de Continuado
     ]);
 
     function getStopwords(idioma) {
@@ -143,30 +149,16 @@ document.addEventListener('DOMContentLoaded', () => {
     function analizarTextoGuion(texto, idioma) {
         const stopwords = getStopwords(idioma);
 
-        // Análisis de Palabras Repetidas
-        const frecuenciaPalabras = {};
-        // MODIFICACIÓN: Se elimina el apóstrofo (') de la lista de caracteres a reemplazar.
-        const textoLimpio = texto.toLowerCase().replace(/[\.,\/#!$%\^&\*;:{}=\-_`~()¡¿?""]/g, ' ');
-        const palabras = textoLimpio.split(/\s+/).filter(word => word.length > 2 && !stopwords.has(word));
-
-        palabras.forEach(palabra => {
-            frecuenciaPalabras[palabra] = (frecuenciaPalabras[palabra] || 0) + 1;
-        });
-
-        const topPalabras = Object.entries(frecuenciaPalabras)
-            .sort(([, a], [, b]) => b - a)
-            .slice(0, 10); 
-
-
-        // Análisis de Personajes Recurrentes
+        // --- 1. Análisis de Personajes Recurrentes (Primero) ---
         const frecuenciaPersonajes = {};
         const lineas = texto.split('\n');
-
+        
         lineas.forEach(linea => {
             const lineaTrim = linea.trim();
+            // Identifica líneas en mayúsculas que NO son cabeceras de escena o transiciones
             if (lineaTrim === lineaTrim.toUpperCase() && lineaTrim.length > 2 && !/\d/.test(lineaTrim)) {
                 
-                if (!['EXT.', 'INT.', 'FADE IN', 'CUT TO', 'DÍA', 'NOCHE', 'TRANSICIÓN', 'FADE OUT', 'APERTURA', 'CIERRE', 'TITLE'].some(c => lineaTrim.startsWith(c))) {
+                if (!['EXT.', 'INT.', 'FADE IN', 'CUT TO', 'DÍA', 'NOCHE', 'TRANSICIÓN', 'FADE OUT', 'APERTURA', 'CIERRE', 'TITLE', 'CONT.'].some(c => lineaTrim.startsWith(c))) {
                     
                     const personaje = lineaTrim.split('(')[0].trim();
                     frecuenciaPersonajes[personaje] = (frecuenciaPersonajes[personaje] || 0) + 1;
@@ -176,7 +168,42 @@ document.addEventListener('DOMContentLoaded', () => {
         
         const topPersonajes = Object.entries(frecuenciaPersonajes)
             .sort(([, a], [, b]) => b - a)
-            .slice(0, 5); 
+            .slice(0, 5);
+        
+        // Convierte los nombres de personajes identificados a un Set de stopwords adicionales
+        // para filtrar las palabras repetidas.
+        const personajesParaFiltrar = new Set(Object.keys(frecuenciaPersonajes).map(name => name.toLowerCase()));
+
+
+        // --- 2. Análisis de Palabras Repetidas (Segundo) ---
+        const frecuenciaPalabras = {};
+        
+        // MODIFICACIÓN CRÍTICA: La expresión regular ahora elimina TODOS los apóstrofos (tanto ' como `) y los sustituye por NADA,
+        // fusionando la palabra (ej: it's -> its; cont'd -> contd), lo que permite que sea filtrada si es un stopword.
+        // Después, se reemplazan los caracteres de puntuación por espacios.
+        let textoLimpio = texto.toLowerCase();
+        
+        // Paso 1: Eliminar apóstrofos y fusionar la palabra (para evitar que se cuenten 's' o 'd' como palabras separadas)
+        textoLimpio = textoLimpio.replace(/['`]/g, '');
+
+        // Paso 2: Reemplazar el resto de puntuación por espacios
+        textoLimpio = textoLimpio.replace(/[\.,\/#!$%\^&\*;:{}=\-_~()¡¿?""]/g, ' ');
+        
+        // Tokenización y filtrado
+        const palabras = textoLimpio.split(/\s+/)
+            .filter(word => 
+                word.length > 2 && 
+                !stopwords.has(word) &&         // Filtra stopwords estándar y contracciones completas
+                !personajesParaFiltrar.has(word) // FILTRO NUEVO: Elimina nombres de personajes
+            );
+
+        palabras.forEach(palabra => {
+            frecuenciaPalabras[palabra] = (frecuenciaPalabras[palabra] || 0) + 1;
+        });
+
+        const topPalabras = Object.entries(frecuenciaPalabras)
+            .sort(([, a], [, b]) => b - a)
+            .slice(0, 10); 
 
 
         return { topPalabras, topPersonajes };
