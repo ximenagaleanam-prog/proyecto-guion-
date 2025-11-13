@@ -1,4 +1,4 @@
-/* --- 1. Variables y Estilos Globales --- */
+/* --- 1. Variables y Estilos Globales (Paleta de Colores Mantenida) --- */
 :root {
     --color-principal: #2E86C1; /* Azul corporativo */
     --color-secundario: #D4E6F1; /* Azul muy claro (para fondos sutiles) */
@@ -73,7 +73,7 @@ section {
 h2 {
     color: var(--color-principal);
     font-size: 1.8em;
-    font-weight: 600; /* Peso ligeramente más alto para el título */
+    font-weight: 600; 
     margin-bottom: 25px;
     border-left: 4px solid var(--color-exito);
     padding-left: 15px;
@@ -107,7 +107,7 @@ hr {
     border: 1px solid var(--color-borde-suave);
     border-radius: 4px;
     font-size: 1em;
-    font-family: 'Inter', monospace; /* Mantenemos el estilo de ancho fijo para guiones */
+    font-family: monospace; /* Mantenemos el estilo de ancho fijo para guiones */
     min-height: 350px; 
     transition: border-color 0.2s;
 }
@@ -165,7 +165,7 @@ button:hover {
 }
 
 /* --- 7. Resultados del Análisis (Limpios) --- */
-#palabras-repetidas, #personajes-recurrentes {
+#palabras-repetidas, #personajes-recurrentes, #oraciones-clave-analisis {
     margin-bottom: 25px;
     padding: 0; 
     border: none;
@@ -199,7 +199,19 @@ ul li::before {
     content: none; 
 }
 
-/* --- 8. Sugerencias (Feedback de IA) --- */
+/* --- 8. Oraciones Clave (Estilo específico) --- */
+#lista-oraciones-clave {
+    grid-template-columns: 1fr; /* Una sola columna para oraciones largas */
+}
+
+#lista-oraciones-clave li {
+    background-color: var(--color-secundario); /* Fondo azul claro para destacarlas */
+    border-left: 4px solid var(--color-principal); 
+    font-style: italic;
+    font-size: 1em;
+}
+
+/* --- 9. Sugerencias (Feedback de IA) --- */
 #texto-sugerencias {
     margin-top: 20px;
     padding: 20px;
