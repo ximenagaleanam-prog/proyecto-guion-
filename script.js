@@ -11,7 +11,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const listaOracionesClave = document.getElementById('lista-oraciones-clave'); 
 
     // --- LISTAS DE STOPWORDS ---
-    // La lista en español no necesita cambios mayores, ya que no usa contracciones con ' como en inglés.
+    // AÑADIDO: Formas cortas de contracciones a ambas listas para robustez.
     const stopwords_es = new Set([
         'el', 'la', 'los', 'las', 'un', 'una', 'unos', 'unas', 
         'y', 'e', 'o', 'u', 'ni', 'pero', 'mas', 'sino', 'porque', 
@@ -28,10 +28,12 @@ document.addEventListener('DOMContentLoaded', () => {
         'otros', 'otras', 'tan', 'tal', 'tales', 'cada', 'cierto', 'cierta',
         
         // Formato de guion en español
-        'v.o.', 'vo', 'o.s.', 'os', 'cont.', 'contd', 'ext.', 'int.', 'dia', 'noche', 'apertura', 'cierre', 'cont'
+        'v.o.', 'vo', 'o.s.', 'os', 'cont.', 'contd', 'ext.', 'int.', 'dia', 'noche', 'apertura', 'cierre', 'cont',
+        
+        // Contratos cortos por si aparecen en el texto español
+        's', 't', 'd', 'm', 'll', 've', 're'
     ]);
 
-    // LISTA DE STOPWORDS EN INGLÉS: MUCHO más robusta para filtrar las partes de contracciones.
     const stopwords_en = new Set([
         'the', 'a', 'an', 'and', 'or', 'but', 'nor', 'yet', 'so', 
         'for', 'of', 'to', 'in', 'on', 'at', 'with', 'from', 'by', 
@@ -48,19 +50,16 @@ document.addEventListener('DOMContentLoaded', () => {
         'more', 'most', 'other', 'some', 'such', 'no', 'nor', 'not', 'only', 
         'own', 'same', 'too', 'very', 
         
-        // Contracciónes completas (para palabras que no se separan bien o por si acaso)
+        // Contracciónes completas y negaciones
         'just', 'don', 'shouldn', 'isn', 'wasn', 'weren', 'haven', 
         'hasn', 'hadn', 'won', 'shan', 'wouldn', 'couldn', 'mightn', 
-        'mustn', 'ain',
+        'mustn', 'ain', 'dont', 'cant', 'wouldnt', 'im', 'hes', 'shes',
         
-        // Contratos específicos con apóstrofo completo (para filtrado preventivo)
-        'it\'s', 'he\'s', 'she\'s', 'we\'re', 'they\'re', 'i\'m', 'you\'re', 
-        'i\'ve', 'you\'ve', 'we\'ve', 'they\'ve', 'i\'ll', 'you\'ll', 'he\'ll', 'she\'ll', 
-        'we\'ll', 'they\'ll', 'can\'t', 'won\'t', 'don\'t', 'doesn\'t', 'didn\'t', 
-        'couldn\'t', 'wouldn\'t', 'shouldn\'t', 'cont\'d', 'dont', 'cant', 'wouldnt',
+        // Formato de guion en inglés
+        'v.o.', 'vo', 'o.s.', 'os', 'cont\'d', 'ext.', 'int.', 'day', 'night', 'fade in', 'fade out', 'cont',
         
-        // PARTES CLAVE DE CONTRACCIONES (que resultan de la separación con espacio)
-        's', 't', 'm', 'll', 've', 're', 'd', 'contd', 'os', 'vo', 'o.s.', 'v.o.', 'ext', 'int'
+        // PARTES CLAVE DE CONTRACCIONES (Añadidas/Verificadas para filtrado por espacio)
+        's', 't', 'm', 'll', 've', 're', 'd', 'contd', 'os', 'vo', 'o.s.', 'v.o.', 'ext', 'int', 'its', 'thats'
     ]);
 
     function getStopwords(idioma) {
@@ -182,9 +181,9 @@ document.addEventListener('DOMContentLoaded', () => {
         
         let textoLimpio = texto.toLowerCase();
         
-        // MODIFICACIÓN CLAVE: Reemplazar el apóstrofo (') por un espacio. 
-        // Esto separa 'it's' en 'it' y 's', permitiendo que la 's' sea filtrada por las stopwords.
-        textoLimpio = textoLimpio.replace(/['`]/g, ' ');
+        // MODIFICACIÓN CRUCIAL: Reemplazar el apóstrofo (') y comillas tipográficas (', ’) y graves (`) por un espacio. 
+        // Esto garantiza que it's, can’t, he`s, etc., se separen en dos palabras y la segunda parte se filtre.
+        textoLimpio = textoLimpio.replace(/['`‘’]/g, ' ');
 
         // Reemplazar el resto de puntuación por espacios
         textoLimpio = textoLimpio.replace(/[\.,\/#!$%\^&\*;:{}=\-_~()¡¿?""]/g, ' ');
@@ -213,9 +212,9 @@ document.addEventListener('DOMContentLoaded', () => {
         const oracionesClave = [];
 
         oraciones.forEach(oracion => {
-            // Se limpia la oración con la misma lógica para una comparación precisa
+            // Limpieza específica para la comparación de oraciones
             let oracionLimpia = oracion.toLowerCase();
-            oracionLimpia = oracionLimpia.replace(/['`]/g, ' '); 
+            oracionLimpia = oracionLimpia.replace(/['`‘’]/g, ' '); 
             oracionLimpia = oracionLimpia.replace(/[\.,\/#!$%\^&\*;:{}=\-_~()¡¿?""]/g, ' ');
             
             const longitud = oracionLimpia.split(/\s+/).length;
