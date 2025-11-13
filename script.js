@@ -29,7 +29,11 @@ document.addEventListener('DOMContentLoaded', () => {
         
         // Formato de guion y contracciones cortas
         'v.o.', 'vo', 'o.s.', 'os', 'cont.', 'contd', 'ext.', 'int.', 'dia', 'noche', 'apertura', 'cierre', 'cont',
-        's', 't', 'd', 'm', 'll', 've', 're'
+        's', 't', 'd', 'm', 'll', 've', 're',
+        
+        // MENCIONES GENÉRICAS A PERSONAJES Y TÍTULOS
+        'hombre', 'mujer', 'chico', 'chica', 'niño', 'niña', 'doctor', 'doctora', 
+        'señor', 'señora', 'policía', 'agente', 'joven', 'viejo', 'guardia', 'detective'
     ]);
 
     const stopwords_en = new Set([
@@ -48,7 +52,7 @@ document.addEventListener('DOMContentLoaded', () => {
         'more', 'most', 'other', 'some', 'such', 'no', 'nor', 'not', 'only', 
         'own', 'same', 'too', 'very', 
         
-        // Preposiciones, Adverbios y Conectores de Movimiento AÑADIDOS
+        // Preposiciones, Adverbios y Conectores de Movimiento
         'into', 'back', 'through', 'toward', 'towards', 'onto', 'upon', 'within', 
         'without', 'while', 'when', 'since', 'until', 'before', 'after', 
         
@@ -59,7 +63,11 @@ document.addEventListener('DOMContentLoaded', () => {
         
         // Formato de guion y Contratos cortos
         'v.o.', 'vo', 'o.s.', 'os', 'cont\'d', 'ext.', 'int.', 'day', 'night', 'fade in', 'fade out', 'cont',
-        's', 't', 'm', 'll', 've', 're', 'd', 'contd', 'its', 'thats'
+        's', 't', 'm', 'll', 've', 're', 'd', 'contd', 'its', 'thats',
+        
+        // MENCIONES GENÉRICAS A PERSONAJES Y TÍTULOS
+        'man', 'woman', 'guy', 'girl', 'boy', 'kid', 'doctor', 'mr', 'mrs', 'ms', 
+        'officer', 'agent', 'young', 'old', 'soldier', 'detective', 'cop'
     ]);
 
     function getStopwords(idioma) {
@@ -168,6 +176,7 @@ document.addEventListener('DOMContentLoaded', () => {
                                 !['EXT.', 'INT.', 'FADE IN', 'CUT TO', 'DÍA', 'NOCHE', 'TRANSICIÓN', 'FADE OUT', 'APERTURA', 'CIERRE', 'TITLE', 'CONT.'].some(c => lineaTrim.startsWith(c));
 
             if (esPersonaje) {
+                // EXTRACCIÓN DE NOMBRE: Solo la parte antes del paréntesis (V.O., O.S., etc.)
                 personajeActual = lineaTrim.split('(')[0].trim();
                 frecuenciaPersonajes[personajeActual] = (frecuenciaPersonajes[personajeActual] || 0) + 1;
                 // Inicializar o preparar para el nuevo diálogo
@@ -175,10 +184,9 @@ document.addEventListener('DOMContentLoaded', () => {
                     dialogosPorPersonaje[personajeActual] = [];
                 }
             } 
-            // 1.2 Extracción de Diálogo (asume que el diálogo sigue inmediatamente al nombre)
+            // 1.2 Extracción de Diálogo
             else if (personajeActual && lineaTrim.length > 0) {
                 
-                // Si la línea anterior era el nombre del personaje o parte de un diálogo multi-línea
                 const dialogoActual = dialogosPorPersonaje[personajeActual].length > 0 ? dialogosPorPersonaje[personajeActual][dialogosPorPersonaje[personajeActual].length - 1] : null;
                 
                 if (dialogoActual && dialogoActual.end === index - 1) {
@@ -186,7 +194,7 @@ document.addEventListener('DOMContentLoaded', () => {
                      dialogoActual.texto += (dialogoActual.texto.length > 0 ? '\n' : '') + linea.trim();
                      dialogoActual.end = index;
                 } else if (!dialogoActual || (dialogoActual && dialogoActual.end < index - 1)) {
-                    // Nuevo diálogo (separado por una línea de acción o espacio)
+                    // Nuevo diálogo
                     dialogosPorPersonaje[personajeActual].push({ texto: linea.trim(), start: index, end: index });
                 }
             } else if (lineaTrim === '' || (!esPersonaje && lineaTrim.length > 0)) {
@@ -200,7 +208,20 @@ document.addEventListener('DOMContentLoaded', () => {
             .sort(([, a], [, b]) => b - a)
             .slice(0, 5);
         
-        const personajesParaFiltrar = new Set(Object.keys(frecuenciaPersonajes).map(name => name.toLowerCase()));
+        // CREACIÓN DEL FILTRO: incluye los nombres completos y las partes individuales
+        const personajesParaFiltrar = new Set();
+        Object.keys(frecuenciaPersonajes).forEach(name => {
+            const lowerName = name.toLowerCase();
+            // Añadir el nombre completo
+            personajesParaFiltrar.add(lowerName);
+            // Añadir partes individuales del nombre 
+            lowerName.split(/\s+/).forEach(part => {
+                // CAMBIO CLAVE: Permite filtrar nombres de 3 letras como "stu" o "doc"
+                if (part.length >= 3) {
+                    personajesParaFiltrar.add(part);
+                }
+            });
+        });
 
 
         // --- 2. Análisis de Palabras Repetidas ---
@@ -217,9 +238,11 @@ document.addEventListener('DOMContentLoaded', () => {
         // Tokenización y filtrado
         const palabras = textoLimpio.split(/\s+/)
             .filter(word => 
+                // Permite palabras de 3 letras solo si NO son stopwords ni nombres de personaje
                 word.length > 2 && 
                 !stopwords.has(word) &&         
-                !personajesParaFiltrar.has(word)
+                // FILTRADO DE NOMBRES EN MINÚSCULAS: Verifica que la palabra no sea un nombre conocido
+                !personajesParaFiltrar.has(word) 
             );
 
         palabras.forEach(palabra => {
@@ -246,11 +269,8 @@ document.addEventListener('DOMContentLoaded', () => {
             
             // Ponderación de Score
             let score = 0;
-            // 1 punto por cada palabra clave encontrada
             score += top5Palabras.filter(word => oracionLimpia.includes(word)).length;
-            // 2 puntos por puntuación fuerte (potencial de ser línea de revelación o pregunta clave)
             if (oracion.includes('!') || oracion.includes('?')) score += 2;
-            // 1 punto por ser lo suficientemente largo (más de 15 palabras)
             if (longitud > 15) score += 1; 
 
             if (score >= 3) {
@@ -268,18 +288,15 @@ document.addEventListener('DOMContentLoaded', () => {
         const dialogosClave = [];
         const topPersonajesNombres = topPersonajes.map(([nombre]) => nombre);
         
-        // Extraer diálogos solo para los 2 personajes principales
         topPersonajesNombres.slice(0, 2).forEach(personaje => {
             const dialogos = dialogosPorPersonaje[personaje] || [];
             
-            // Encontrar los 2 diálogos más largos de ese personaje (por longitud de texto)
             const dialogosOrdenados = dialogos
                 .map(d => ({ texto: d.texto, longitud: d.texto.length }))
                 .sort((a, b) => b.longitud - a.longitud)
                 .slice(0, 2);
                 
             dialogosOrdenados.forEach(d => {
-                // Limitar el texto a 250 caracteres para no saturar la visualización
                 dialogosClave.push({ personaje: personaje, dialogo: d.texto.substring(0, 250) + (d.texto.length > 250 ? '...' : '') });
             });
         });
@@ -354,7 +371,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 <p><strong>Feedback de la IA sobre tu texto:</strong></p>
                 <p>1. <strong>Diálogo Clave:</strong> Revisa los diálogos clave extraídos. Estos suelen ser monólogos o puntos de inflexión. ¿Son lo suficientemente potentes para justificar su longitud?</p>
                 <p>2. <strong>Oraciones Clave:</strong> La heurística priorizó frases largas con palabras frecuentes y puntuación fuerte. Estas frases marcan el tono y el tema. ¿Reflejan la intención de tu escena?</p>
-                <p>3. <strong>Frecuencia de Palabras:</strong> El filtrado ha eliminado preposiciones comunes como 'into' y 'back', enfocando el análisis en los sustantivos y verbos más significativos. Los términos restantes son el esqueleto temático de tu guion.</p>
+                <p>3. <strong>Frecuencia de Palabras:</strong> El filtrado ha eliminado preposiciones comunes, menciones genéricas de personajes y nombres cortos de personajes ('Stu', 'Doc') que aparecen en el guion. Los términos restantes son el esqueleto temático de tu guion.</p>
                 <p><em>*Esta es una sugerencia simulada. Para un análisis real, se requeriría una integración con una API de IA.</em></p>
             `;
             textoSugerencias.innerHTML = sugerencias;
