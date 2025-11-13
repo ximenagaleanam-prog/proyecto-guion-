@@ -75,34 +75,22 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
 
-    // --- FUNCIÓN DE LIMPIEZA DE FORMATO (NUEVA) ---
-    /**
-     * Aplica limpieza de formato al texto crudo del guion para mejorar la detección
-     * de personajes y diálogos, y normalizar el texto.
-     * @param {string} texto - El texto crudo del guion.
-     * @returns {string} El texto del guion limpio.
-     */
+    // --- FUNCIÓN DE LIMPIEZA DE FORMATO (SIN CAMBIOS) ---
     function limpiarTextoGuion(texto) {
         let textoLimpio = texto;
 
         // 1. Reemplazar saltos de línea extraños (comunes en conversión DOCX a TXT)
-        // Reemplaza múltiples saltos de línea con un máximo de dos.
         textoLimpio = textoLimpio.replace(/(\r\n|\n|\r){3,}/g, '\n\n'); 
 
         // 2. Eliminar márgenes blancos y caracteres nulos
         textoLimpio = textoLimpio.trim();
-        textoLimpio = textoLimpio.replace(/\0/g, ''); // Eliminar caracteres nulos
+        textoLimpio = textoLimpio.replace(/\0/g, ''); 
 
-        // 3. Normalizar espacios (esencial para la tokenización y la detección de MAYÚSCULAS)
-        textoLimpio = textoLimpio.replace(/[ \t]{2,}/g, ' '); // Reemplazar múltiples espacios/tabulaciones con un solo espacio
+        // 3. Normalizar espacios
+        textoLimpio = textoLimpio.replace(/[ \t]{2,}/g, ' '); 
 
         // 4. Intentar separar nombres de personajes (en MAYÚSCULAS) que podrían haberse pegado al texto de acción/diálogo
-        // Asegura que las líneas que terminan en mayúsculas y continúan con texto estén separadas por un salto de línea.
-        // Ejemplo: "JOHN(V.O.)La frase..." -> "JOHN(V.O.)\nLa frase..."
         textoLimpio = textoLimpio.replace(/([A-Z.]{3,})([^A-Z.\n\r])/g, (match, p1, p2) => {
-            // p1 es la sección en MAYÚSCULAS (potencialmente nombre)
-            // p2 es el primer carácter que no es MAYÚSCULA/punto (potencialmente diálogo/acción)
-            // Solo si p1 NO termina en punto (podría ser EXT./INT.) y NO es solo un acrónimo pequeño
             if (p1.length > 5 && !p1.endsWith('.')) {
                  return p1 + '\n' + p2;
             }
@@ -126,7 +114,6 @@ document.addEventListener('DOMContentLoaded', () => {
         if (fileName.endsWith('.txt')) {
             const reader = new FileReader();
             reader.onload = (e) => {
-                // APLICAR LIMPIEZA AL CARGAR .TXT
                 textoGuion.value = limpiarTextoGuion(e.target.result); 
                 alert(`Archivo "${file.name}" (.txt) cargado y limpiado con éxito.`);
                 archivoGuion.value = '';
@@ -151,7 +138,6 @@ document.addEventListener('DOMContentLoaded', () => {
                 
                 mammoth.extractRawText({ arrayBuffer: arrayBuffer })
                     .then(result => {
-                        // APLICAR LIMPIEZA AL CARGAR .DOCX
                         textoGuion.value = limpiarTextoGuion(result.value); 
                         alert(`Archivo "${file.name}" (.docx) cargado y limpiado con éxito.`);
                     })
@@ -189,9 +175,8 @@ document.addEventListener('DOMContentLoaded', () => {
             return;
         }
 
-        // APLICAR LIMPIEZA AL PEGAR EN EL TEXTAREA ANTES DE ANALIZAR
         guion = limpiarTextoGuion(guion);
-        textoGuion.value = guion; // Opcional: actualizar el textarea con el texto limpio
+        textoGuion.value = guion; 
 
         const analisis = analizarTextoGuion(guion, idiomaSeleccionado);
         
@@ -217,15 +202,12 @@ document.addEventListener('DOMContentLoaded', () => {
             const lineaTrim = linea.trim();
             
             // 1.1 Identificación de Personaje (MAYÚSCULAS)
-            // Se mantiene la regla de más de 2 caracteres, pero la limpieza de formato ayuda a aislar el nombre.
             const esPersonaje = lineaTrim === lineaTrim.toUpperCase() && lineaTrim.length > 2 && !/\d/.test(lineaTrim) && 
                                 !['EXT.', 'INT.', 'FADE IN', 'CUT TO', 'DÍA', 'NOCHE', 'TRANSICIÓN', 'FADE OUT', 'APERTURA', 'CIERRE', 'TITLE', 'CONT.'].some(c => lineaTrim.startsWith(c));
 
             if (esPersonaje) {
-                // EXTRACCIÓN DE NOMBRE: Solo la parte antes del paréntesis (V.O., O.S., etc.)
                 personajeActual = lineaTrim.split('(')[0].trim();
                 frecuenciaPersonajes[personajeActual] = (frecuenciaPersonajes[personajeActual] || 0) + 1;
-                // Inicializar o preparar para el nuevo diálogo
                 if (!dialogosPorPersonaje[personajeActual]) {
                     dialogosPorPersonaje[personajeActual] = [];
                 }
@@ -236,31 +218,24 @@ document.addEventListener('DOMContentLoaded', () => {
                 const dialogoActual = dialogosPorPersonaje[personajeActual].length > 0 ? dialogosPorPersonaje[personajeActual][dialogosPorPersonaje[personajeActual].length - 1] : null;
                 
                 if (dialogoActual && dialogoActual.end === index - 1) {
-                     // Continuar el diálogo anterior (diálogo multi-línea)
                      dialogoActual.texto += (dialogoActual.texto.length > 0 ? '\n' : '') + linea.trim();
                      dialogoActual.end = index;
                 } else if (!dialogoActual || (dialogoActual && dialogoActual.end < index - 1)) {
-                    // Nuevo diálogo
                     dialogosPorPersonaje[personajeActual].push({ texto: linea.trim(), start: index, end: index });
                 }
             } else if (lineaTrim === '' || (!esPersonaje && lineaTrim.length > 0)) {
-                // Línea en blanco o línea de acción: detiene la extracción continua del diálogo
                 personajeActual = null;
             }
         });
 
-        // Ordenar personajes por frecuencia para el filtro de palabras
         const topPersonajes = Object.entries(frecuenciaPersonajes)
             .sort(([, a], [, b]) => b - a)
             .slice(0, 5);
         
-        // CREACIÓN DEL FILTRO: incluye los nombres completos y las partes individuales (3 o más letras)
         const personajesParaFiltrar = new Set();
         Object.keys(frecuenciaPersonajes).forEach(name => {
             const lowerName = name.toLowerCase();
-            // Añadir el nombre completo
             personajesParaFiltrar.add(lowerName);
-            // Añadir partes individuales del nombre 
             lowerName.split(/\s+/).forEach(part => {
                 if (part.length >= 3) {
                     personajesParaFiltrar.add(part);
@@ -274,19 +249,13 @@ document.addEventListener('DOMContentLoaded', () => {
         
         let textoLimpio = texto.toLowerCase();
         
-        // CRUCIAL: Reemplazar apóstrofos y comillas tipográficas por un espacio para separar contracciones
         textoLimpio = textoLimpio.replace(/['`‘’]/g, ' ');
-
-        // Reemplazar el resto de puntuación por espacios
         textoLimpio = textoLimpio.replace(/[\.,\/#!$%\^&\*;:{}=\-_~()¡¿?""]/g, ' ');
         
-        // Tokenización y filtrado
         const palabras = textoLimpio.split(/\s+/)
             .filter(word => 
-                // Permite palabras de 3 letras solo si NO son stopwords ni nombres de personaje
                 word.length > 2 && 
                 !stopwords.has(word) &&         
-                // FILTRADO DE NOMBRES EN MINÚSCULAS: Verifica que la palabra no sea un nombre conocido
                 !personajesParaFiltrar.has(word) 
             );
 
@@ -296,23 +265,22 @@ document.addEventListener('DOMContentLoaded', () => {
 
         const topPalabras = Object.entries(frecuenciaPalabras)
             .sort(([, a], [, b]) => b - a)
-            .slice(0, 10); 
-
-
-        // --- 3. Análisis de Oraciones Clave ---
-        const oraciones = texto.match(/[^\.!\?]+[\.!\?]/g) || [];
+            .slice(0, 10);
+        
         const top5Palabras = topPalabras.map(([word]) => word);
+
+
+        // --- 3. Análisis de Oraciones Clave (Sin Cambios) ---
+        const oraciones = texto.match(/[^\.!\?]+[\.!\?]/g) || [];
         const oracionesClavePonderadas = [];
 
         oraciones.forEach(oracion => {
-            // Limpieza para score
             let oracionLimpia = oracion.toLowerCase();
             oracionLimpia = oracionLimpia.replace(/['`‘’]/g, ' '); 
             oracionLimpia = oracionLimpia.replace(/[\.,\/#!$%\^&\*;:{}=\-_~()¡¿?""]/g, ' ');
             
             const longitud = oracionLimpia.split(/\s+/).length;
             
-            // Ponderación de Score
             let score = 0;
             score += top5Palabras.filter(word => oracionLimpia.includes(word)).length;
             if (oracion.includes('!') || oracion.includes('?')) score += 2;
@@ -323,32 +291,67 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         });
         
-        // Ordenar por score, eliminar duplicados y limitar a 5
         oracionesClavePonderadas.sort((a, b) => b.score - a.score);
         const uniqueOracionesClave = [...new Set(oracionesClavePonderadas.map(item => item.oracion))]
             .slice(0, 5);
 
 
-        // --- 4. Extracción de Diálogos Clave ---
+        // --- 4. Extracción de Diálogos Clave Ponderada (MEJORA CLAVE) ---
         const dialogosClave = [];
         const topPersonajesNombres = topPersonajes.map(([nombre]) => nombre);
         
+        // Analizar solo los 2 personajes principales
         topPersonajesNombres.slice(0, 2).forEach(personaje => {
             const dialogos = dialogosPorPersonaje[personaje] || [];
+            const dialogosPonderados = [];
+
+            dialogos.forEach(d => {
+                const dialogoTexto = d.texto.toLowerCase();
+                const longitud = dialogoTexto.length;
+                
+                // 1. Contar la aparición de palabras clave temáticas (Top 5)
+                let scorePalabrasClave = 0;
+                top5Palabras.forEach(keyword => {
+                    // Se usa una expresión regular para contar ocurrencias de la palabra completa
+                    const regex = new RegExp(`\\b${keyword}\\b`, 'g');
+                    const matches = dialogoTexto.match(regex);
+                    if (matches) {
+                        scorePalabrasClave += matches.length;
+                    }
+                });
+
+                // 2. Cálculo del Score de Relevancia: (Score de Palabras Clave * 3) + (Longitud / 50)
+                // Se pondera más la aparición de palabras clave que la longitud.
+                const relevanciaScore = (scorePalabrasClave * 3) + (longitud / 50);
+
+                if (relevanciaScore > 0) {
+                    dialogosPonderados.push({ 
+                        personaje: personaje, 
+                        texto: d.texto, 
+                        score: relevanciaScore 
+                    });
+                }
+            });
             
-            const dialogosOrdenados = dialogos
-                .map(d => ({ texto: d.texto, longitud: d.texto.length }))
-                .sort((a, b) => b.longitud - a.longitud)
+            // Ordenar por score y seleccionar los 2 más relevantes
+            const dialogosOrdenados = dialogosPonderados
+                .sort((a, b) => b.score - a.score)
                 .slice(0, 2);
                 
-            dialogosOrdenados.forEach(d => {
-                dialogosClave.push({ personaje: personaje, dialogo: d.texto.substring(0, 250) + (d.texto.length > 250 ? '...' : '') });
+            dialogosOrdenados.forEach(item => {
+                // Limitar el texto a 250 caracteres para la visualización
+                dialogosClave.push({ 
+                    personaje: item.personaje, 
+                    dialogo: item.texto.substring(0, 250) + (item.texto.length > 250 ? '...' : '') 
+                });
             });
         });
 
 
         return { topPalabras, topPersonajes, oracionesClave: uniqueOracionesClave, dialogosClave: dialogosClave };
     }
+
+    // --- FUNCIONES DE MOSTRAR RESULTADOS Y SUGERENCIAS (SIN CAMBIOS) ---
 
     function mostrarResultados(analisis) {
         listaPalabras.innerHTML = '';
@@ -414,7 +417,7 @@ document.addEventListener('DOMContentLoaded', () => {
             
             const sugerencias = `
                 <p><strong>Feedback de la IA sobre tu texto:</strong></p>
-                <p>1. <strong>Diálogo Clave:</strong> Revisa los diálogos clave extraídos. Estos suelen ser monólogos o puntos de inflexión. ¿Son lo suficientemente potentes para justificar su longitud?</p>
+                <p>1. <strong>Diálogo Clave Mejorado:</strong> Ahora, los diálogos se seleccionan por su **relevancia temática**, es decir, por la cantidad de **palabras clave** (las palabras más frecuentes en todo el guion) que contienen, además de su longitud. Esto asegura que los diálogos que definen el tema central sean resaltados.</p>
                 <p>2. <strong>Oraciones Clave:</strong> La heurística priorizó frases largas con palabras frecuentes y puntuación fuerte. Estas frases marcan el tono y el tema. ¿Reflejan la intención de tu escena?</p>
                 <p>3. <strong>Formato y Limpieza:</strong> La limpieza de formato automática ha ayudado a aislar mejor los nombres de personajes y separar líneas que pudieran haberse juntado, mejorando la precisión del análisis de frecuencia y diálogos.</p>
                 <p><em>*Esta es una sugerencia simulada. Para un análisis real, se requeriría una integración con una API de IA.</em></p>
