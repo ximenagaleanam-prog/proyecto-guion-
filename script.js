@@ -8,8 +8,10 @@ document.addEventListener('DOMContentLoaded', () => {
     const listaPersonajes = document.getElementById('lista-personajes');
     const generarSugerenciasBtn = document.getElementById('generar-sugerencias-btn');
     const textoSugerencias = document.getElementById('texto-sugerencias');
+    const listaOracionesClave = document.getElementById('lista-oraciones-clave'); 
 
     // --- LISTAS DE STOPWORDS ---
+    // Abreviaturas y formatos de guion comunes se han añadido al final de ambas listas.
     const stopwords_es = new Set([
         'el', 'la', 'los', 'las', 'un', 'una', 'unos', 'unas', 
         'y', 'e', 'o', 'u', 'ni', 'pero', 'mas', 'sino', 'porque', 
@@ -23,10 +25,12 @@ document.addEventListener('DOMContentLoaded', () => {
         'cuando', 'donde', 'mientras', 'aunque', 'cuyo', 'cuyos', 'cuyas', 
         'vez', 'todo', 'toda', 'todos', 'todas', 'poco', 'poca', 'pocos', 
         'pocas', 'mucho', 'mucha', 'muchos', 'muchas', 'otro', 'otra', 
-        'otros', 'otras', 'tan', 'tal', 'tales', 'cada', 'cierto', 'cierta'
+        'otros', 'otras', 'tan', 'tal', 'tales', 'cada', 'cierto', 'cierta',
+        
+        // Formato de guion en español
+        'v.o.', 'vo', 'o.s.', 'os', 'cont.', 'contd', 'ext.', 'int.', 'dia', 'noche', 'apertura', 'cierre', 'cont'
     ]);
 
-    // LISTA DE STOPWORDS EN INGLÉS: Incluye contracciones completas como palabras a filtrar.
     const stopwords_en = new Set([
         'the', 'a', 'an', 'and', 'or', 'but', 'nor', 'yet', 'so', 
         'for', 'of', 'to', 'in', 'on', 'at', 'with', 'from', 'by', 
@@ -43,16 +47,19 @@ document.addEventListener('DOMContentLoaded', () => {
         'more', 'most', 'other', 'some', 'such', 'no', 'nor', 'not', 'only', 
         'own', 'same', 'too', 'very', 
         
-        // Contracciónes completas para filtrar como palabras enteras
+        // Contracciónes y formas cortas. 
         'just', 'don', 'shouldn', 'isn', 'wasn', 'weren', 'haven', 
         'hasn', 'hadn', 'won', 'shan', 'wouldn', 'couldn', 'mightn', 
-        'mustn', 'ain', 
+        'mustn', 'ain',
         
-        // Contratos específicos que suelen aparecer:
+        // Contratos específicos que suelen aparecer (incluye versiones con y sin apóstrofo, ya que el apóstrofo se elimina)
         'its', 'it\'s', 'he\'s', 'she\'s', 'we\'re', 'they\'re', 'i\'m', 'you\'re', 
         'i\'ve', 'you\'ve', 'we\'ve', 'they\'ve', 'i\'ll', 'you\'ll', 'he\'ll', 'she\'ll', 
         'we\'ll', 'they\'ll', 'can\'t', 'won\'t', 'don\'t', 'doesn\'t', 'didn\'t', 
-        'couldn\'t', 'wouldn\'t', 'shouldn\'t', 'cont\'d' // Abrev. de Continuado
+        'couldn\'t', 'wouldn\'t', 'shouldn\'t', 'im', 'its', 'hes', 'shes', 'contd',
+        
+        // Formato de guion en inglés
+        'v.o.', 'vo', 'o.s.', 'os', 'cont\'d', 'ext.', 'int.', 'day', 'night', 'fade in', 'fade out', 'cont'
     ]);
 
     function getStopwords(idioma) {
@@ -60,7 +67,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
 
-    // --- LÓGICA DE LECTURA DE ARCHIVOS (SOPORTE DOCX Y TXT) ---
+    // --- LÓGICA DE LECTURA DE ARCHIVOS (MAMMOTH) ---
     archivoGuion.addEventListener('change', (event) => {
         const file = event.target.files[0];
         if (!file) {
@@ -69,10 +76,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
         const fileName = file.name.toLowerCase();
 
-        // 1. Manejar archivos .TXT
         if (fileName.endsWith('.txt')) {
             const reader = new FileReader();
-
             reader.onload = (e) => {
                 textoGuion.value = e.target.result;
                 alert(`Archivo "${file.name}" (.txt) cargado con éxito.`);
@@ -84,7 +89,6 @@ document.addEventListener('DOMContentLoaded', () => {
             reader.readAsText(file, 'UTF-8');
         } 
         
-        // 2. Manejar archivos .DOCX (Usando Mammoth.js)
         else if (fileName.endsWith('.docx')) {
             if (typeof mammoth === 'undefined') {
                 alert('Error: La librería Mammoth.js no se ha cargado correctamente. No se puede leer el archivo .docx.');
@@ -118,7 +122,6 @@ document.addEventListener('DOMContentLoaded', () => {
             reader.readAsArrayBuffer(file); 
         } 
         
-        // 3. Manejar otros tipos de archivos
         else {
             alert('Tipo de archivo no soportado. Por favor, usa .txt o .docx.');
             archivoGuion.value = '';
@@ -126,7 +129,7 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
 
-    // --- LÓGICA DE ANÁLISIS ---
+    // --- LÓGICA DE ANÁLISIS PRINCIPAL ---
     analizarBtn.addEventListener('click', (e) => {
         e.preventDefault(); 
 
@@ -149,7 +152,7 @@ document.addEventListener('DOMContentLoaded', () => {
     function analizarTextoGuion(texto, idioma) {
         const stopwords = getStopwords(idioma);
 
-        // --- 1. Análisis de Personajes Recurrentes (Primero) ---
+        // --- 1. Análisis de Personajes Recurrentes ---
         const frecuenciaPersonajes = {};
         const lineas = texto.split('\n');
         
@@ -160,6 +163,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 
                 if (!['EXT.', 'INT.', 'FADE IN', 'CUT TO', 'DÍA', 'NOCHE', 'TRANSICIÓN', 'FADE OUT', 'APERTURA', 'CIERRE', 'TITLE', 'CONT.'].some(c => lineaTrim.startsWith(c))) {
                     
+                    // Solo considera el nombre base, quitando posibles modificadores entre paréntesis (O.S.)
                     const personaje = lineaTrim.split('(')[0].trim();
                     frecuenciaPersonajes[personaje] = (frecuenciaPersonajes[personaje] || 0) + 1;
                 }
@@ -170,20 +174,16 @@ document.addEventListener('DOMContentLoaded', () => {
             .sort(([, a], [, b]) => b - a)
             .slice(0, 5);
         
-        // Convierte los nombres de personajes identificados a un Set de stopwords adicionales
-        // para filtrar las palabras repetidas.
+        // Set para filtrar los nombres de personajes del análisis de palabras
         const personajesParaFiltrar = new Set(Object.keys(frecuenciaPersonajes).map(name => name.toLowerCase()));
 
 
-        // --- 2. Análisis de Palabras Repetidas (Segundo) ---
+        // --- 2. Análisis de Palabras Repetidas ---
         const frecuenciaPalabras = {};
         
-        // MODIFICACIÓN CRÍTICA: La expresión regular ahora elimina TODOS los apóstrofos (tanto ' como `) y los sustituye por NADA,
-        // fusionando la palabra (ej: it's -> its; cont'd -> contd), lo que permite que sea filtrada si es un stopword.
-        // Después, se reemplazan los caracteres de puntuación por espacios.
         let textoLimpio = texto.toLowerCase();
         
-        // Paso 1: Eliminar apóstrofos y fusionar la palabra (para evitar que se cuenten 's' o 'd' como palabras separadas)
+        // Paso 1: Eliminar apóstrofos (para convertir it's en its, que luego puede ser filtrado)
         textoLimpio = textoLimpio.replace(/['`]/g, '');
 
         // Paso 2: Reemplazar el resto de puntuación por espacios
@@ -193,8 +193,8 @@ document.addEventListener('DOMContentLoaded', () => {
         const palabras = textoLimpio.split(/\s+/)
             .filter(word => 
                 word.length > 2 && 
-                !stopwords.has(word) &&         // Filtra stopwords estándar y contracciones completas
-                !personajesParaFiltrar.has(word) // FILTRO NUEVO: Elimina nombres de personajes
+                !stopwords.has(word) &&         
+                !personajesParaFiltrar.has(word)
             );
 
         palabras.forEach(palabra => {
@@ -206,13 +206,37 @@ document.addEventListener('DOMContentLoaded', () => {
             .slice(0, 10); 
 
 
-        return { topPalabras, topPersonajes };
+        // --- 3. Análisis de Oraciones Clave ---
+        // Heurística: Oraciones más largas que contienen al menos una de las 3 palabras más repetidas.
+        // Utiliza una regex para dividir por terminación de frase (. ! ?)
+        const oraciones = texto.match(/[^\.!\?]+[\.!\?]/g) || [];
+        const top3Palabras = topPalabras.map(([word]) => word);
+        const oracionesClave = [];
+
+        oraciones.forEach(oracion => {
+            // Se limpian los apóstrofos de la oración para compararla con las palabras clave filtradas
+            const oracionLimpia = oracion.toLowerCase().replace(/['`]/g, ''); 
+            const longitud = oracionLimpia.split(/\s+/).length;
+            
+            // Criterios: Longitud mínima (evita frases cortas de diálogo) y contiene al menos 1 palabra clave
+            if (longitud > 10 && top3Palabras.some(word => oracionLimpia.includes(word))) {
+                oracionesClave.push(oracion.trim());
+            }
+        });
+        
+        // Eliminar duplicados y limitar a 5 oraciones
+        const uniqueOracionesClave = [...new Set(oracionesClave)].slice(0, 5);
+
+
+        return { topPalabras, topPersonajes, oracionesClave: uniqueOracionesClave };
     }
 
     function mostrarResultados(analisis) {
         listaPalabras.innerHTML = '';
         listaPersonajes.innerHTML = '';
+        listaOracionesClave.innerHTML = '';
 
+        // Mostrar Palabras
         if (analisis.topPalabras.length > 0) {
             analisis.topPalabras.forEach(([palabra, count]) => {
                 const li = document.createElement('li');
@@ -223,6 +247,7 @@ document.addEventListener('DOMContentLoaded', () => {
              listaPalabras.innerHTML = '<li>No se encontraron palabras relevantes.</li>';
         }
 
+        // Mostrar Personajes
         if (analisis.topPersonajes.length > 0) {
             analisis.topPersonajes.forEach(([personaje, count]) => {
                 const li = document.createElement('li');
@@ -231,6 +256,17 @@ document.addEventListener('DOMContentLoaded', () => {
             });
         } else {
             listaPersonajes.innerHTML = '<li>No se identificaron personajes (asegúrate de que los nombres estén en MAYÚSCULAS).</li>';
+        }
+        
+        // Mostrar Oraciones Clave
+        if (analisis.oracionesClave.length > 0) {
+            analisis.oracionesClave.forEach(oracion => {
+                const li = document.createElement('li');
+                li.textContent = oracion;
+                listaOracionesClave.appendChild(li);
+            });
+        } else {
+            listaOracionesClave.innerHTML = '<li>No se identificaron oraciones clave (basadas en longitud y palabras frecuentes).</li>';
         }
     }
 
@@ -248,8 +284,8 @@ document.addEventListener('DOMContentLoaded', () => {
             const sugerencias = `
                 <p><strong>Feedback de la IA sobre tu texto:</strong></p>
                 <p>1. <strong>Concentración de Diálogo:</strong> El personaje con más diálogos domina gran parte de la interacción. Considera si este desequilibrio sirve a tu historia o si necesitas repartir el peso narrativo.</p>
-                <p>2. <strong>Frecuencia de Palabras:</strong> El análisis excluyó conjunciones y artículos. Las palabras restantes con alta frecuencia (como "Oscuridad", "Desesperación", o un objeto clave) son esenciales para el tema de tu guion.</p>
-                <p>3. <strong>Ritmo de Escena:</strong> Si observas muchas líneas de acción cortas seguidas, el ritmo puede ser frenético. Para variar, intercala descripciones sensoriales más largas.</p>
+                <p>2. <strong>Frecuencia de Palabras:</strong> Las palabras de alta frecuencia ahora excluyen nombres de personajes y formatos de guion. Estas palabras restantes son los pilares temáticos de tu guion.</p>
+                <p>3. <strong>Oraciones Clave:</strong> Las oraciones clave identificadas suelen encapsular momentos importantes. Revisa si estas oraciones representan efectivamente el tema central o el conflicto de tu historia.</p>
                 <p><em>*Esta es una sugerencia simulada. Para un análisis real, se requeriría una integración con una API de IA.</em></p>
             `;
             textoSugerencias.innerHTML = sugerencias;
