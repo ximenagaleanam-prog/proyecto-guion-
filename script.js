@@ -26,7 +26,7 @@ document.addEventListener('DOMContentLoaded', () => {
         'otros', 'otras', 'tan', 'tal', 'tales', 'cada', 'cierto', 'cierta'
     ]);
 
-    // LISTA DE STOPWORDS EN INGLÉS ACTUALIZADA: incluye contracciones comunes.
+    // LISTA DE STOPWORDS EN INGLÉS ACTUALIZADA: Conserva las contracciones como palabras enteras.
     const stopwords_en = new Set([
         'the', 'a', 'an', 'and', 'or', 'but', 'nor', 'yet', 'so', 
         'for', 'of', 'to', 'in', 'on', 'at', 'with', 'from', 'by', 
@@ -43,10 +43,10 @@ document.addEventListener('DOMContentLoaded', () => {
         'more', 'most', 'other', 'some', 'such', 'no', 'nor', 'not', 'only', 
         'own', 'same', 'too', 'very', 
         
-        // Contracciónes y formas cortas añadidas
-        's', 't', 'just', 'don', 'shouldn', 've', 'll', 'm', 're', 
-        'isn', 'wasn', 'weren', 'haven', 'hasn', 'hadn', 'won', 'shan', 
-        'wouldn', 'couldn', 'mightn', 'mustn', 'd', 'ain'
+        // Contracciónes parciales eliminadas. Solo mantenemos las palabras completas:
+        'just', 'don', 'shouldn', 'isn', 'wasn', 'weren', 'haven', 
+        'hasn', 'hadn', 'won', 'shan', 'wouldn', 'couldn', 'mightn', 
+        'mustn', 'ain'
     ]);
 
     function getStopwords(idioma) {
@@ -75,13 +75,11 @@ document.addEventListener('DOMContentLoaded', () => {
             reader.onerror = () => {
                 alert('Error al leer el archivo .txt.');
             };
-            // Leer como texto con UTF-8
             reader.readAsText(file, 'UTF-8');
         } 
         
         // 2. Manejar archivos .DOCX (Usando Mammoth.js)
         else if (fileName.endsWith('.docx')) {
-            // Verificamos si Mammoth está disponible (por si falla la CDN)
             if (typeof mammoth === 'undefined') {
                 alert('Error: La librería Mammoth.js no se ha cargado correctamente. No se puede leer el archivo .docx.');
                 archivoGuion.value = '';
@@ -91,10 +89,8 @@ document.addEventListener('DOMContentLoaded', () => {
             const reader = new FileReader();
             
             reader.onload = (e) => {
-                // Leer el archivo como ArrayBuffer (datos binarios)
                 const arrayBuffer = e.target.result;
                 
-                // Usar Mammoth para convertir el ArrayBuffer a Texto
                 mammoth.extractRawText({ arrayBuffer: arrayBuffer })
                     .then(result => {
                         textoGuion.value = result.value; 
@@ -113,7 +109,6 @@ document.addEventListener('DOMContentLoaded', () => {
                 alert('Error al leer el archivo .docx.');
             };
 
-            // Leer como ArrayBuffer para Mammoth
             reader.readAsArrayBuffer(file); 
         } 
         
@@ -150,8 +145,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
         // Análisis de Palabras Repetidas
         const frecuenciaPalabras = {};
-        // La sustitución del apóstrofo por un espacio ayuda a separar las partes de la contracción (ej: can't -> can t)
-        const textoLimpio = texto.toLowerCase().replace(/[\.,\/#!$%\^&\*;:{}=\-_`~()¡¿?"']/g, ' ');
+        // MODIFICACIÓN: Se elimina el apóstrofo (') de la lista de caracteres a reemplazar.
+        const textoLimpio = texto.toLowerCase().replace(/[\.,\/#!$%\^&\*;:{}=\-_`~()¡¿?""]/g, ' ');
         const palabras = textoLimpio.split(/\s+/).filter(word => word.length > 2 && !stopwords.has(word));
 
         palabras.forEach(palabra => {
