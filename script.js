@@ -11,7 +11,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const listaOracionesClave = document.getElementById('lista-oraciones-clave'); 
 
     // --- LISTAS DE STOPWORDS ---
-    // Abreviaturas y formatos de guion comunes se han añadido al final de ambas listas.
+    // La lista en español no necesita cambios mayores, ya que no usa contracciones con ' como en inglés.
     const stopwords_es = new Set([
         'el', 'la', 'los', 'las', 'un', 'una', 'unos', 'unas', 
         'y', 'e', 'o', 'u', 'ni', 'pero', 'mas', 'sino', 'porque', 
@@ -31,6 +31,7 @@ document.addEventListener('DOMContentLoaded', () => {
         'v.o.', 'vo', 'o.s.', 'os', 'cont.', 'contd', 'ext.', 'int.', 'dia', 'noche', 'apertura', 'cierre', 'cont'
     ]);
 
+    // LISTA DE STOPWORDS EN INGLÉS: MUCHO más robusta para filtrar las partes de contracciones.
     const stopwords_en = new Set([
         'the', 'a', 'an', 'and', 'or', 'but', 'nor', 'yet', 'so', 
         'for', 'of', 'to', 'in', 'on', 'at', 'with', 'from', 'by', 
@@ -47,19 +48,19 @@ document.addEventListener('DOMContentLoaded', () => {
         'more', 'most', 'other', 'some', 'such', 'no', 'nor', 'not', 'only', 
         'own', 'same', 'too', 'very', 
         
-        // Contracciónes y formas cortas. 
+        // Contracciónes completas (para palabras que no se separan bien o por si acaso)
         'just', 'don', 'shouldn', 'isn', 'wasn', 'weren', 'haven', 
         'hasn', 'hadn', 'won', 'shan', 'wouldn', 'couldn', 'mightn', 
         'mustn', 'ain',
         
-        // Contratos específicos que suelen aparecer (incluye versiones con y sin apóstrofo, ya que el apóstrofo se elimina)
-        'its', 'it\'s', 'he\'s', 'she\'s', 'we\'re', 'they\'re', 'i\'m', 'you\'re', 
+        // Contratos específicos con apóstrofo completo (para filtrado preventivo)
+        'it\'s', 'he\'s', 'she\'s', 'we\'re', 'they\'re', 'i\'m', 'you\'re', 
         'i\'ve', 'you\'ve', 'we\'ve', 'they\'ve', 'i\'ll', 'you\'ll', 'he\'ll', 'she\'ll', 
         'we\'ll', 'they\'ll', 'can\'t', 'won\'t', 'don\'t', 'doesn\'t', 'didn\'t', 
-        'couldn\'t', 'wouldn\'t', 'shouldn\'t', 'im', 'its', 'hes', 'shes', 'contd',
+        'couldn\'t', 'wouldn\'t', 'shouldn\'t', 'cont\'d', 'dont', 'cant', 'wouldnt',
         
-        // Formato de guion en inglés
-        'v.o.', 'vo', 'o.s.', 'os', 'cont\'d', 'ext.', 'int.', 'day', 'night', 'fade in', 'fade out', 'cont'
+        // PARTES CLAVE DE CONTRACCIONES (que resultan de la separación con espacio)
+        's', 't', 'm', 'll', 've', 're', 'd', 'contd', 'os', 'vo', 'o.s.', 'v.o.', 'ext', 'int'
     ]);
 
     function getStopwords(idioma) {
@@ -163,7 +164,6 @@ document.addEventListener('DOMContentLoaded', () => {
                 
                 if (!['EXT.', 'INT.', 'FADE IN', 'CUT TO', 'DÍA', 'NOCHE', 'TRANSICIÓN', 'FADE OUT', 'APERTURA', 'CIERRE', 'TITLE', 'CONT.'].some(c => lineaTrim.startsWith(c))) {
                     
-                    // Solo considera el nombre base, quitando posibles modificadores entre paréntesis (O.S.)
                     const personaje = lineaTrim.split('(')[0].trim();
                     frecuenciaPersonajes[personaje] = (frecuenciaPersonajes[personaje] || 0) + 1;
                 }
@@ -174,7 +174,6 @@ document.addEventListener('DOMContentLoaded', () => {
             .sort(([, a], [, b]) => b - a)
             .slice(0, 5);
         
-        // Set para filtrar los nombres de personajes del análisis de palabras
         const personajesParaFiltrar = new Set(Object.keys(frecuenciaPersonajes).map(name => name.toLowerCase()));
 
 
@@ -183,10 +182,11 @@ document.addEventListener('DOMContentLoaded', () => {
         
         let textoLimpio = texto.toLowerCase();
         
-        // Paso 1: Eliminar apóstrofos (para convertir it's en its, que luego puede ser filtrado)
-        textoLimpio = textoLimpio.replace(/['`]/g, '');
+        // MODIFICACIÓN CLAVE: Reemplazar el apóstrofo (') por un espacio. 
+        // Esto separa 'it's' en 'it' y 's', permitiendo que la 's' sea filtrada por las stopwords.
+        textoLimpio = textoLimpio.replace(/['`]/g, ' ');
 
-        // Paso 2: Reemplazar el resto de puntuación por espacios
+        // Reemplazar el resto de puntuación por espacios
         textoLimpio = textoLimpio.replace(/[\.,\/#!$%\^&\*;:{}=\-_~()¡¿?""]/g, ' ');
         
         // Tokenización y filtrado
@@ -208,17 +208,19 @@ document.addEventListener('DOMContentLoaded', () => {
 
         // --- 3. Análisis de Oraciones Clave ---
         // Heurística: Oraciones más largas que contienen al menos una de las 3 palabras más repetidas.
-        // Utiliza una regex para dividir por terminación de frase (. ! ?)
         const oraciones = texto.match(/[^\.!\?]+[\.!\?]/g) || [];
         const top3Palabras = topPalabras.map(([word]) => word);
         const oracionesClave = [];
 
         oraciones.forEach(oracion => {
-            // Se limpian los apóstrofos de la oración para compararla con las palabras clave filtradas
-            const oracionLimpia = oracion.toLowerCase().replace(/['`]/g, ''); 
+            // Se limpia la oración con la misma lógica para una comparación precisa
+            let oracionLimpia = oracion.toLowerCase();
+            oracionLimpia = oracionLimpia.replace(/['`]/g, ' '); 
+            oracionLimpia = oracionLimpia.replace(/[\.,\/#!$%\^&\*;:{}=\-_~()¡¿?""]/g, ' ');
+            
             const longitud = oracionLimpia.split(/\s+/).length;
             
-            // Criterios: Longitud mínima (evita frases cortas de diálogo) y contiene al menos 1 palabra clave
+            // Criterios: Longitud mínima y contiene al menos 1 palabra clave
             if (longitud > 10 && top3Palabras.some(word => oracionLimpia.includes(word))) {
                 oracionesClave.push(oracion.trim());
             }
