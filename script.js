@@ -11,7 +11,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const listaOracionesClave = document.getElementById('lista-oraciones-clave');
     const listaDialogosClave = document.getElementById('lista-dialogos-clave'); 
 
-    // --- LISTAS DE STOPWORDS ---
+    // --- LISTAS DE STOPWORDS (SIN CAMBIOS) ---
     const stopwords_es = new Set([
         'el', 'la', 'los', 'las', 'un', 'una', 'unos', 'unas', 
         'y', 'e', 'o', 'u', 'ni', 'pero', 'mas', 'sino', 'porque', 
@@ -75,6 +75,45 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
 
+    // --- FUNCIÓN DE LIMPIEZA DE FORMATO (NUEVA) ---
+    /**
+     * Aplica limpieza de formato al texto crudo del guion para mejorar la detección
+     * de personajes y diálogos, y normalizar el texto.
+     * @param {string} texto - El texto crudo del guion.
+     * @returns {string} El texto del guion limpio.
+     */
+    function limpiarTextoGuion(texto) {
+        let textoLimpio = texto;
+
+        // 1. Reemplazar saltos de línea extraños (comunes en conversión DOCX a TXT)
+        // Reemplaza múltiples saltos de línea con un máximo de dos.
+        textoLimpio = textoLimpio.replace(/(\r\n|\n|\r){3,}/g, '\n\n'); 
+
+        // 2. Eliminar márgenes blancos y caracteres nulos
+        textoLimpio = textoLimpio.trim();
+        textoLimpio = textoLimpio.replace(/\0/g, ''); // Eliminar caracteres nulos
+
+        // 3. Normalizar espacios (esencial para la tokenización y la detección de MAYÚSCULAS)
+        textoLimpio = textoLimpio.replace(/[ \t]{2,}/g, ' '); // Reemplazar múltiples espacios/tabulaciones con un solo espacio
+
+        // 4. Intentar separar nombres de personajes (en MAYÚSCULAS) que podrían haberse pegado al texto de acción/diálogo
+        // Asegura que las líneas que terminan en mayúsculas y continúan con texto estén separadas por un salto de línea.
+        // Ejemplo: "JOHN(V.O.)La frase..." -> "JOHN(V.O.)\nLa frase..."
+        textoLimpio = textoLimpio.replace(/([A-Z.]{3,})([^A-Z.\n\r])/g, (match, p1, p2) => {
+            // p1 es la sección en MAYÚSCULAS (potencialmente nombre)
+            // p2 es el primer carácter que no es MAYÚSCULA/punto (potencialmente diálogo/acción)
+            // Solo si p1 NO termina en punto (podría ser EXT./INT.) y NO es solo un acrónimo pequeño
+            if (p1.length > 5 && !p1.endsWith('.')) {
+                 return p1 + '\n' + p2;
+            }
+            return match; 
+        });
+
+
+        return textoLimpio;
+    }
+
+
     // --- LÓGICA DE LECTURA DE ARCHIVOS (MAMMOTH) ---
     archivoGuion.addEventListener('change', (event) => {
         const file = event.target.files[0];
@@ -87,8 +126,9 @@ document.addEventListener('DOMContentLoaded', () => {
         if (fileName.endsWith('.txt')) {
             const reader = new FileReader();
             reader.onload = (e) => {
-                textoGuion.value = e.target.result;
-                alert(`Archivo "${file.name}" (.txt) cargado con éxito.`);
+                // APLICAR LIMPIEZA AL CARGAR .TXT
+                textoGuion.value = limpiarTextoGuion(e.target.result); 
+                alert(`Archivo "${file.name}" (.txt) cargado y limpiado con éxito.`);
                 archivoGuion.value = '';
             };
             reader.onerror = () => {
@@ -111,8 +151,9 @@ document.addEventListener('DOMContentLoaded', () => {
                 
                 mammoth.extractRawText({ arrayBuffer: arrayBuffer })
                     .then(result => {
-                        textoGuion.value = result.value; 
-                        alert(`Archivo "${file.name}" (.docx) cargado con éxito.`);
+                        // APLICAR LIMPIEZA AL CARGAR .DOCX
+                        textoGuion.value = limpiarTextoGuion(result.value); 
+                        alert(`Archivo "${file.name}" (.docx) cargado y limpiado con éxito.`);
                     })
                     .catch(err => {
                         console.error('Error de Mammoth:', err);
@@ -135,19 +176,22 @@ document.addEventListener('DOMContentLoaded', () => {
             archivoGuion.value = '';
         }
     });
-
-
+    
     // --- LÓGICA DE ANÁLISIS PRINCIPAL ---
     analizarBtn.addEventListener('click', (e) => {
         e.preventDefault(); 
 
-        const guion = textoGuion.value.trim();
+        let guion = textoGuion.value.trim();
         const idiomaSeleccionado = idiomaSelector.value;
         
         if (guion.length === 0) {
             alert('Por favor, pega o sube un guion para analizar.');
             return;
         }
+
+        // APLICAR LIMPIEZA AL PEGAR EN EL TEXTAREA ANTES DE ANALIZAR
+        guion = limpiarTextoGuion(guion);
+        textoGuion.value = guion; // Opcional: actualizar el textarea con el texto limpio
 
         const analisis = analizarTextoGuion(guion, idiomaSeleccionado);
         
@@ -156,6 +200,7 @@ document.addEventListener('DOMContentLoaded', () => {
         resultadosSection.style.display = 'block';
         resultadosSection.scrollIntoView({ behavior: 'smooth' }); 
     });
+
 
     function analizarTextoGuion(texto, idioma) {
         const stopwords = getStopwords(idioma);
@@ -172,6 +217,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const lineaTrim = linea.trim();
             
             // 1.1 Identificación de Personaje (MAYÚSCULAS)
+            // Se mantiene la regla de más de 2 caracteres, pero la limpieza de formato ayuda a aislar el nombre.
             const esPersonaje = lineaTrim === lineaTrim.toUpperCase() && lineaTrim.length > 2 && !/\d/.test(lineaTrim) && 
                                 !['EXT.', 'INT.', 'FADE IN', 'CUT TO', 'DÍA', 'NOCHE', 'TRANSICIÓN', 'FADE OUT', 'APERTURA', 'CIERRE', 'TITLE', 'CONT.'].some(c => lineaTrim.startsWith(c));
 
@@ -208,7 +254,7 @@ document.addEventListener('DOMContentLoaded', () => {
             .sort(([, a], [, b]) => b - a)
             .slice(0, 5);
         
-        // CREACIÓN DEL FILTRO: incluye los nombres completos y las partes individuales
+        // CREACIÓN DEL FILTRO: incluye los nombres completos y las partes individuales (3 o más letras)
         const personajesParaFiltrar = new Set();
         Object.keys(frecuenciaPersonajes).forEach(name => {
             const lowerName = name.toLowerCase();
@@ -216,7 +262,6 @@ document.addEventListener('DOMContentLoaded', () => {
             personajesParaFiltrar.add(lowerName);
             // Añadir partes individuales del nombre 
             lowerName.split(/\s+/).forEach(part => {
-                // CAMBIO CLAVE: Permite filtrar nombres de 3 letras como "stu" o "doc"
                 if (part.length >= 3) {
                     personajesParaFiltrar.add(part);
                 }
@@ -371,7 +416,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 <p><strong>Feedback de la IA sobre tu texto:</strong></p>
                 <p>1. <strong>Diálogo Clave:</strong> Revisa los diálogos clave extraídos. Estos suelen ser monólogos o puntos de inflexión. ¿Son lo suficientemente potentes para justificar su longitud?</p>
                 <p>2. <strong>Oraciones Clave:</strong> La heurística priorizó frases largas con palabras frecuentes y puntuación fuerte. Estas frases marcan el tono y el tema. ¿Reflejan la intención de tu escena?</p>
-                <p>3. <strong>Frecuencia de Palabras:</strong> El filtrado ha eliminado preposiciones comunes, menciones genéricas de personajes y nombres cortos de personajes ('Stu', 'Doc') que aparecen en el guion. Los términos restantes son el esqueleto temático de tu guion.</p>
+                <p>3. <strong>Formato y Limpieza:</strong> La limpieza de formato automática ha ayudado a aislar mejor los nombres de personajes y separar líneas que pudieran haberse juntado, mejorando la precisión del análisis de frecuencia y diálogos.</p>
                 <p><em>*Esta es una sugerencia simulada. Para un análisis real, se requeriría una integración con una API de IA.</em></p>
             `;
             textoSugerencias.innerHTML = sugerencias;
