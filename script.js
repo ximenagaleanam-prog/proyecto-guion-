@@ -11,7 +11,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const listaOracionesClave = document.getElementById('lista-oraciones-clave');
     const listaDialogosClave = document.getElementById('lista-dialogos-clave'); 
 
-    // --- LISTAS DE STOPWORDS ---
+    // --- LISTAS DE STOPWORDS (Continúan igual) ---
     const stopwords_es = new Set([
         'el', 'la', 'los', 'las', 'un', 'una', 'unos', 'unas', 
         'y', 'e', 'o', 'u', 'ni', 'pero', 'mas', 'sino', 'porque', 
@@ -71,7 +71,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
 
-    // --- FUNCIÓN DE LIMPIEZA DE FORMATO ---
+    // --- FUNCIÓN DE LIMPIEZA DE FORMATO (Continúa igual) ---
     function limpiarTextoGuion(texto) {
         let textoLimpio = texto;
 
@@ -91,7 +91,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
 
-    // --- LÓGICA DE LECTURA DE ARCHIVOS (MAMMOTH) ---
+    // --- LÓGICA DE LECTURA DE ARCHIVOS (MAMMOTH - REVISADA CON DEBUG) ---
     archivoGuion.addEventListener('change', (event) => {
         const file = event.target.files[0];
         if (!file) {
@@ -116,8 +116,7 @@ document.addEventListener('DOMContentLoaded', () => {
         else if (fileName.endsWith('.docx')) {
             // VERIFICACIÓN DE MAMMOTH
             if (typeof mammoth === 'undefined') {
-                alert('ERROR: La librería Mammoth.js no está disponible. No se puede leer el archivo .docx. Asegúrate de que el script Mammoth.js esté cargado correctamente en index.html.');
-                console.error('Mammoth.js no está definido. La carga de .docx fallará.');
+                alert('ERROR: La librería Mammoth.js no está disponible. Asegúrate de que el script Mammoth.js esté cargado correctamente en index.html.');
                 archivoGuion.value = '';
                 return;
             }
@@ -129,8 +128,20 @@ document.addEventListener('DOMContentLoaded', () => {
                 
                 mammoth.extractRawText({ arrayBuffer: arrayBuffer })
                     .then(result => {
-                        textoGuion.value = limpiarTextoGuion(result.value); 
-                        alert(`Archivo "${file.name}" (.docx) cargado y limpiado con éxito.`);
+                        // --- DEBUG: IMPRIME EL TEXTO CRUDO DE MAMMOTH ---
+                        console.log("--- DEBUG: Resultado crudo de Mammoth ---");
+                        // Imprime los primeros 500 caracteres (o menos si es más corto)
+                        console.log(result.value.substring(0, 500) + (result.value.length > 500 ? '...' : ''));
+                        console.log("---------------------------------------");
+                        
+                        
+                        if (result.value.trim().length === 0) {
+                            alert(`ADVERTENCIA: Archivo "${file.name}" cargado, pero Mammoth no pudo extraer texto legible. Verifique el formato interno del DOCX.`);
+                            textoGuion.value = ''; 
+                        } else {
+                            textoGuion.value = limpiarTextoGuion(result.value); 
+                            alert(`Archivo "${file.name}" (.docx) cargado y limpiado con éxito.`);
+                        }
                     })
                     .catch(err => {
                         console.error('Error de conversión DOCX (Mammoth):', err);
@@ -154,7 +165,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
     
-    // --- LÓGICA DE ANÁLISIS PRINCIPAL ---
+    // --- LÓGICA DE ANÁLISIS PRINCIPAL (Continúa igual) ---
     analizarBtn.addEventListener('click', (e) => {
         e.preventDefault(); 
 
@@ -338,6 +349,8 @@ document.addEventListener('DOMContentLoaded', () => {
         return { topPalabras, topPersonajes, oracionesClave: uniqueOracionesClave, dialogosClave: dialogosClave };
     }
 
+    // --- FUNCIONES DE MOSTRAR RESULTADOS Y SUGERENCIAS (Continúan igual) ---
+
     function mostrarResultados(analisis) {
         listaPalabras.innerHTML = '';
         listaPersonajes.innerHTML = '';
@@ -389,7 +402,6 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    // Funcionalidad de Sugerencias (Simulado)
     generarSugerenciasBtn.addEventListener('click', () => {
         textoSugerencias.innerHTML = '<p>Analizando el texto con la IA... ⏳</p>';
 
