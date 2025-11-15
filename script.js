@@ -75,11 +75,13 @@ document.addEventListener('DOMContentLoaded', () => {
     function limpiarTextoGuion(texto) {
         let textoLimpio = texto;
 
+        // Normalizar saltos de línea y eliminar espacios múltiples
         textoLimpio = textoLimpio.replace(/(\r\n|\n|\r){3,}/g, '\n\n'); 
         textoLimpio = textoLimpio.trim();
         textoLimpio = textoLimpio.replace(/\0/g, ''); 
         textoLimpio = textoLimpio.replace(/[ \t]{2,}/g, ' '); 
 
+        // Intentar separar las líneas de personaje de las líneas de acción si están pegadas
         textoLimpio = textoLimpio.replace(/([A-Z.]{3,})([^A-Z.\n\r])/g, (match, p1, p2) => {
             if (p1.length > 5 && !p1.endsWith('.')) {
                  return p1 + '\n' + p2;
@@ -89,9 +91,23 @@ document.addEventListener('DOMContentLoaded', () => {
 
         return textoLimpio;
     }
+    
+    // =========================================================
+    // IMPLEMENTACIÓN DE AUTO-LIMPIEZA AL PEGAR O ESCRIBIR
+    // Esto asegura que el texto introducido manualmente esté limpio
+    // =========================================================
+    textoGuion.addEventListener('input', () => {
+        const textoActual = textoGuion.value;
+        const textoLimpio = limpiarTextoGuion(textoActual);
+        
+        // Solo actualiza si la limpieza hizo un cambio (evita saltos de cursor)
+        if (textoActual !== textoLimpio) {
+            textoGuion.value = textoLimpio;
+        }
+    });
 
 
-    // --- LÓGICA DE LECTURA DE ARCHIVOS (MAMMOTH - MEJORADA) ---
+    // --- LÓGICA DE LECTURA DE ARCHIVOS (MAMMOTH - REVISADA CON MEJOR MENSAJE) ---
     archivoGuion.addEventListener('change', (event) => {
         const file = event.target.files[0];
         if (!file) {
@@ -136,7 +152,7 @@ document.addEventListener('DOMContentLoaded', () => {
                         
                         
                         if (result.value.trim().length === 0) {
-                            alert(`ADVERTENCIA: Archivo "${file.name}" cargado, pero Mammoth no pudo extraer texto legible. Esto es común con archivos DOCX que usan tablas, cuadros o formatos complejos. Por favor, COPIA Y PEGA el texto.`);
+                            alert(`ADVERTENCIA: Archivo "${file.name}" cargado, pero Mammoth no pudo extraer texto legible. Por favor, COPIA Y PEGA el texto del guion directamente en la caja de texto.`);
                             textoGuion.value = ''; 
                         } else {
                             textoGuion.value = limpiarTextoGuion(result.value); 
