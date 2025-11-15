@@ -193,7 +193,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
         // Almacenar el texto completo de cada diálogo para el análisis posterior
         const dialogosPorPersonaje = {};
-
+        let textoTotalDialogos = ''; // NUEVO: Para almacenar SOLO el texto de los diálogos
+        
         // --- 1. Análisis de Personajes Recurrentes y Diálogos ---
         const frecuenciaPersonajes = {};
         let personajeActual = null;
@@ -217,12 +218,21 @@ document.addEventListener('DOMContentLoaded', () => {
                 
                 const dialogoActual = dialogosPorPersonaje[personajeActual].length > 0 ? dialogosPorPersonaje[personajeActual][dialogosPorPersonaje[personajeActual].length - 1] : null;
                 
+                // Excluir paréntesis descriptivos (Wryly), si están presentes, del contenido del diálogo
+                let dialogoLimpio = lineaTrim.replace(/\([^)]*\)/g, '').trim(); 
+
                 if (dialogoActual && dialogoActual.end === index - 1) {
-                     dialogoActual.texto += (dialogoActual.texto.length > 0 ? '\n' : '') + linea.trim();
+                     // Continuar el diálogo anterior (diálogo multi-línea)
+                     dialogoActual.texto += (dialogoActual.texto.length > 0 ? ' ' : '') + dialogoLimpio;
                      dialogoActual.end = index;
                 } else if (!dialogoActual || (dialogoActual && dialogoActual.end < index - 1)) {
-                    dialogosPorPersonaje[personajeActual].push({ texto: linea.trim(), start: index, end: index });
+                    // Nuevo diálogo
+                    dialogosPorPersonaje[personajeActual].push({ texto: dialogoLimpio, start: index, end: index });
                 }
+                
+                // ACUMULAR SOLO TEXTO DE DIÁLOGO
+                textoTotalDialogos += ' ' + dialogoLimpio;
+
             } else if (lineaTrim === '' || (!esPersonaje && lineaTrim.length > 0)) {
                 personajeActual = null;
             }
@@ -244,15 +254,16 @@ document.addEventListener('DOMContentLoaded', () => {
         });
 
 
-        // --- 2. Análisis de Palabras Repetidas ---
+        // --- 2. Análisis de Palabras Repetidas (Usa SOLO textoTotalDialogos) ---
         const frecuenciaPalabras = {};
         
-        let textoLimpio = texto.toLowerCase();
+        let textoLimpioAnalisis = textoTotalDialogos.toLowerCase();
         
-        textoLimpio = textoLimpio.replace(/['`‘’]/g, ' ');
-        textoLimpio = textoLimpio.replace(/[\.,\/#!$%\^&\*;:{}=\-_~()¡¿?""]/g, ' ');
+        // Limpieza de puntuación y contracciones en el texto de diálogo
+        textoLimpioAnalisis = textoLimpioAnalisis.replace(/['`‘’]/g, ' ');
+        textoLimpioAnalisis = textoLimpioAnalisis.replace(/[\.,\/#!$%\^&\*;:{}=\-_~()¡¿?""]/g, ' ');
         
-        const palabras = textoLimpio.split(/\s+/)
+        const palabras = textoLimpioAnalisis.split(/\s+/)
             .filter(word => 
                 word.length > 2 && 
                 !stopwords.has(word) &&         
@@ -270,8 +281,9 @@ document.addEventListener('DOMContentLoaded', () => {
         const top5Palabras = topPalabras.map(([word]) => word);
 
 
-        // --- 3. Análisis de Oraciones Clave (Sin Cambios) ---
-        const oraciones = texto.match(/[^\.!\?]+[\.!\?]/g) || [];
+        // --- 3. Análisis de Oraciones Clave (Usa SOLO textoTotalDialogos) ---
+        // Usar textoTotalDialogos para buscar solo frases de diálogo
+        const oraciones = textoTotalDialogos.match(/[^\.!\?]+[\.!\?]/g) || [];
         const oracionesClavePonderadas = [];
 
         oraciones.forEach(oracion => {
@@ -296,23 +308,21 @@ document.addEventListener('DOMContentLoaded', () => {
             .slice(0, 5);
 
 
-        // --- 4. Extracción de Diálogos Clave Ponderada (MEJORA CLAVE) ---
+        // --- 4. Extracción de Diálogos Clave Ponderada (Sin Cambios en Lógica de Scoring) ---
         const dialogosClave = [];
         const topPersonajesNombres = topPersonajes.map(([nombre]) => nombre);
         
-        // Analizar solo los 2 personajes principales
         topPersonajesNombres.slice(0, 2).forEach(personaje => {
             const dialogos = dialogosPorPersonaje[personaje] || [];
             const dialogosPonderados = [];
 
             dialogos.forEach(d => {
+                // d.texto ya ha sido limpiado de paréntesis descriptivos en el Paso 1
                 const dialogoTexto = d.texto.toLowerCase();
                 const longitud = dialogoTexto.length;
                 
-                // 1. Contar la aparición de palabras clave temáticas (Top 5)
                 let scorePalabrasClave = 0;
                 top5Palabras.forEach(keyword => {
-                    // Se usa una expresión regular para contar ocurrencias de la palabra completa
                     const regex = new RegExp(`\\b${keyword}\\b`, 'g');
                     const matches = dialogoTexto.match(regex);
                     if (matches) {
@@ -320,8 +330,6 @@ document.addEventListener('DOMContentLoaded', () => {
                     }
                 });
 
-                // 2. Cálculo del Score de Relevancia: (Score de Palabras Clave * 3) + (Longitud / 50)
-                // Se pondera más la aparición de palabras clave que la longitud.
                 const relevanciaScore = (scorePalabrasClave * 3) + (longitud / 50);
 
                 if (relevanciaScore > 0) {
@@ -333,13 +341,11 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
             });
             
-            // Ordenar por score y seleccionar los 2 más relevantes
             const dialogosOrdenados = dialogosPonderados
                 .sort((a, b) => b.score - a.score)
                 .slice(0, 2);
                 
             dialogosOrdenados.forEach(item => {
-                // Limitar el texto a 250 caracteres para la visualización
                 dialogosClave.push({ 
                     personaje: item.personaje, 
                     dialogo: item.texto.substring(0, 250) + (item.texto.length > 250 ? '...' : '') 
@@ -417,9 +423,9 @@ document.addEventListener('DOMContentLoaded', () => {
             
             const sugerencias = `
                 <p><strong>Feedback de la IA sobre tu texto:</strong></p>
-                <p>1. <strong>Diálogo Clave Mejorado:</strong> Ahora, los diálogos se seleccionan por su **relevancia temática**, es decir, por la cantidad de **palabras clave** (las palabras más frecuentes en todo el guion) que contienen, además de su longitud. Esto asegura que los diálogos que definen el tema central sean resaltados.</p>
-                <p>2. <strong>Oraciones Clave:</strong> La heurística priorizó frases largas con palabras frecuentes y puntuación fuerte. Estas frases marcan el tono y el tema. ¿Reflejan la intención de tu escena?</p>
-                <p>3. <strong>Formato y Limpieza:</strong> La limpieza de formato automática ha ayudado a aislar mejor los nombres de personajes y separar líneas que pudieran haberse juntado, mejorando la precisión del análisis de frecuencia y diálogos.</p>
+                <p>1. <strong>Análisis Temático Exclusivo:</strong> La frecuencia de palabras y las oraciones clave ahora se calculan **únicamente** a partir de los diálogos, excluyendo por completo las líneas de acción y el formato del guion (ej. "CUT TO", "EXT."). Esto te da una visión pura del contenido temático hablado.</p>
+                <p>2. <strong>Diálogo Clave:</strong> Los diálogos más relevantes se seleccionan por su densidad de palabras clave, asegurando que los temas centrales del guion sean abordados en las frases destacadas.</p>
+                <p>3. <strong>Revisión de Palabras:</strong> Las palabras clave mostradas son el verdadero núcleo temático de tu guion, sin contaminación de descripciones de acción o formato.</p>
                 <p><em>*Esta es una sugerencia simulada. Para un análisis real, se requeriría una integración con una API de IA.</em></p>
             `;
             textoSugerencias.innerHTML = sugerencias;
