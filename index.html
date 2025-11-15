@@ -3,91 +3,70 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>🎬 Analizador de Guiones de Películas</title>
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@100..900&display=swap" rel="stylesheet">
-    
+    <title>🎬 Analizador de Guiones Inteligente</title>
     <link rel="stylesheet" href="style.css">
+    <script src="mammoth.browser.min.js"></script> 
 </head>
 <body>
     <header>
-        <h1>GuionAI 🤖</h1>
-        <p>Análisis de Frecuencia y Estructura de Guiones de Cine</p>
+        <h1>🎬 Analizador de Guiones Inteligente</h1>
+        <p>Sube o pega tu guion (en formato de texto simple) para analizar palabras clave y diálogos.</p>
     </header>
 
     <main>
-        <section id="carga-guion">
-            <h2>Sube o Pega tu Guion</h2>
-            
-            <form id="formulario-guion">
-                <textarea id="texto-guion" placeholder="Pega aquí el texto completo de tu guion..." rows="15" cols="80"></textarea>
-                <br>
-                
-                <label for="archivo-guion">O sube un archivo (solo .txt o .docx):</label>
+        <section id="entrada">
+            <div class="controles">
                 <input type="file" id="archivo-guion" accept=".txt, .docx">
-                <br>
-
-                <label for="idioma-analisis">Idioma del Guion:</label>
                 <select id="idioma-analisis">
                     <option value="es">Español</option>
                     <option value="en">Inglés</option>
                 </select>
-                <br>
-
-                <button type="submit" id="analizar-btn">✨ Analizar Guion</button>
-            </form>
+                <button id="analizar-btn">Analizar Guion</button>
+            </div>
             
-            <p class="nota-importante">**Nota:** El análisis filtra automáticamente palabras comunes, nombres de personajes y formatos de guion.</p>
+            <textarea id="texto-guion" rows="20" placeholder="Pega aquí el texto completo de tu guion. Asegúrate de que los nombres de los personajes estén en MAYÚSCULAS para una detección correcta."></textarea>
         </section>
 
         <hr>
 
         <section id="resultados" style="display: none;">
-            <h2>📊 Resultados del Análisis</h2>
+            <h2>📊 Resultados del Análisis de Diálogos</h2>
             
-            <div id="palabras-repetidas">
-                <h3>Palabras Más Repetidas</h3>
-                <ul id="lista-palabras">
-                    </ul>
-            </div>
+            <div class="contenedor-resultados">
+                <div class="columna">
+                    <h3>👥 Top 5 Personajes (Por Diálogo)</h3>
+                    <ul id="lista-personajes"></ul>
+                </div>
 
-            <div id="personajes-recurrentes">
-                <h3>Personajes con Más Diálogos</h3>
-                <ul id="lista-personajes">
-                    </ul>
-            </div>
-            
-            <hr>
-            <div id="oraciones-clave-analisis">
-                <h3>💡 Oraciones Clave y Temáticas</h3>
-                <ul id="lista-oraciones-clave">
-                    </ul>
+                <div class="columna">
+                    <h3>🔑 Top 10 Palabras Clave (Temas)</h3>
+                    <p class="nota">Basado *solo* en la frecuencia del diálogo.</p>
+                    <ul id="lista-palabras"></ul>
+                </div>
             </div>
             
             <hr>
-            <div id="dialogos-clave-analisis">
-                <h3>🗣️ Diálogos Largos de Personajes Principales</h3>
-                <ul id="lista-dialogos-clave">
-                    </ul>
-            </div>
+            
+            <h3>💬 Diálogos Clave Ponderados</h3>
+            <p class="nota">Diálogos seleccionados por su longitud y densidad de palabras clave, que representan puntos focales del tema.</p>
+            <ul id="lista-dialogos-clave" class="lista-dialogos"></ul>
+            
+            <h3>📝 Oraciones Centrales del Guion</h3>
+            <p class="nota">Frases temáticas que contienen puntuación fuerte o alta densidad de palabras clave.</p>
+            <ul id="lista-oraciones-clave" class="lista-oraciones"></ul>
 
-            <hr>
+        </section>
 
-            <div id="sugerencias">
-                <h3>✍️ Sugerencias de Mejora</h3>
-                <button id="generar-sugerencias-btn">Solicitar Sugerencias</button>
-                <div id="texto-sugerencias">
-                    </div>
+        <hr>
+
+        <section id="sugerencias">
+            <h2>💡 Sugerencias de la IA (Simulado)</h2>
+            <button id="generar-sugerencias-btn">Generar Feedback Temático</button>
+            <div id="texto-sugerencias" class="feedback-box">
+                <p>Haz clic en "Generar Feedback Temático" después de analizar el guion para recibir un informe simulado sobre los hallazgos.</p>
             </div>
         </section>
     </main>
-
-    <footer>
-        <p>&copy; 2025 GuionAI. Herramienta de análisis de texto para escritores de cine.</p>
-    </footer>
-
-    <script src="https://cdn.jsdelivr.net/npm/mammoth@1.6.0/mammoth.browser.min.js"></script> 
 
     <script src="script.js"></script>
 </body>
