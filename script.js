@@ -7,68 +7,14 @@ document.addEventListener('DOMContentLoaded', () => {
     const listaPalabras = document.getElementById('lista-palabras');
     const listaPersonajes = document.getElementById('lista-personajes');
     const generarSugerenciasBtn = document.getElementById('generar-sugerencias-btn');
-    const textoSugerencias = document.getElementById('texto-sugerencias');
+    const textoSugerencias = document.getElementById('textoSugerencias');
     const listaOracionesClave = document.getElementById('lista-oraciones-clave');
     const listaDialogosClave = document.getElementById('lista-dialogos-clave'); 
 
-    // --- LISTAS DE STOPWORDS (SIN CAMBIOS) ---
-    const stopwords_es = new Set([
-        'el', 'la', 'los', 'las', 'un', 'una', 'unos', 'unas', 
-        'y', 'e', 'o', 'u', 'ni', 'pero', 'mas', 'sino', 'porque', 
-        'si', 'no', 'que', 'de', 'a', 'en', 'por', 'con', 'para', 
-        'se', 'es', 'su', 'sus', 'mi', 'mis', 'tu', 'tus', 'al', 
-        'del', 'lo', 'le', 'les', 'me', 'te', 'nos', 'os', 'esto', 
-        'eso', 'aquel', 'aquella', 'aquellos', 'aquellas', 'aquí', 
-        'ahí', 'allí', 'yo', 'tú', 'él', 'ella', 'nosotros', 'vosotros', 
-        'ellos', 'ellas', 'ser', 'estar', 'haber', 'hay', 'es', 'está', 
-        'soy', 'eres', 'somos', 'sois', 'son', 'fui', 'era', 'fue', 'como', 
-        'cuando', 'donde', 'mientras', 'aunque', 'cuyo', 'cuyos', 'cuyas', 
-        'vez', 'todo', 'toda', 'todos', 'todas', 'poco', 'poca', 'pocos', 
-        'pocas', 'mucho', 'mucha', 'muchos', 'muchas', 'otro', 'otra', 
-        'otros', 'otras', 'tan', 'tal', 'tales', 'cada', 'cierto', 'cierta',
-        
-        // Formato de guion y contracciones cortas
-        'v.o.', 'vo', 'o.s.', 'os', 'cont.', 'contd', 'ext.', 'int.', 'dia', 'noche', 'apertura', 'cierre', 'cont',
-        's', 't', 'd', 'm', 'll', 've', 're',
-        
-        // MENCIONES GENÉRICAS A PERSONAJES Y TÍTULOS
-        'hombre', 'mujer', 'chico', 'chica', 'niño', 'niña', 'doctor', 'doctora', 
-        'señor', 'señora', 'policía', 'agente', 'joven', 'viejo', 'guardia', 'detective'
-    ]);
+    // --- LISTAS DE STOPWORDS (Omitidas para brevedad, permanecen sin cambios) ---
+    const stopwords_es = new Set(['el', 'la', 'los', 'las', 'un', 'una', 'unos', 'unas', 'y', 'e', 'o', 'u', 'ni', 'pero', 'mas', 'sino', 'porque', 'si', 'no', 'que', 'de', 'a', 'en', 'por', 'con', 'para', 'se', 'es', 'su', 'sus', 'mi', 'mis', 'tu', 'tus', 'al', 'del', 'lo', 'le', 'les', 'me', 'te', 'nos', 'os', 'esto', 'eso', 'aquel', 'aquella', 'aquellos', 'aquellas', 'aquí', 'ahí', 'allí', 'yo', 'tú', 'él', 'ella', 'nosotros', 'vosotros', 'ellos', 'ellas', 'ser', 'estar', 'haber', 'hay', 'es', 'está', 'soy', 'eres', 'somos', 'sois', 'son', 'fui', 'era', 'fue', 'como', 'cuando', 'donde', 'mientras', 'aunque', 'cuyo', 'cuyos', 'cuyas', 'vez', 'todo', 'toda', 'todos', 'todas', 'poco', 'poca', 'pocos', 'pocas', 'mucho', 'mucha', 'muchos', 'muchas', 'otro', 'otra', 'otros', 'otras', 'tan', 'tal', 'tales', 'cada', 'cierto', 'cierta', 'v.o.', 'vo', 'o.s.', 'os', 'cont.', 'contd', 'ext.', 'int.', 'dia', 'noche', 'apertura', 'cierre', 'cont', 's', 't', 'd', 'm', 'll', 've', 're', 'hombre', 'mujer', 'chico', 'chica', 'niño', 'niña', 'doctor', 'doctora', 'señor', 'señora', 'policía', 'agente', 'joven', 'viejo', 'guardia', 'detective']);
 
-    const stopwords_en = new Set([
-        'the', 'a', 'an', 'and', 'or', 'but', 'nor', 'yet', 'so', 
-        'for', 'of', 'to', 'in', 'on', 'at', 'with', 'from', 'by', 
-        'about', 'as', 'is', 'am', 'are', 'was', 'were', 'be', 'been', 
-        'being', 'have', 'has', 'had', 'do', 'does', 'did', 'doing', 
-        'it', 'its', 'i', 'me', 'my', 'myself', 'you', 'your', 'yours', 
-        'yourself', 'he', 'him', 'his', 'himself', 'she', 'her', 'hers', 
-        'herself', 'we', 'us', 'our', 'ours', 'ourselves', 'they', 'them', 
-        'their', 'theirs', 'themselves', 'what', 'which', 'who', 'whom', 
-        'this', 'that', 'these', 'those', 'can', 'will', 'would', 'should', 
-        'could', 'may', 'might', 'must', 'up', 'down', 'out', 'off', 'over', 
-        'under', 'again', 'further', 'then', 'once', 'here', 'there', 
-        'when', 'where', 'why', 'how', 'all', 'any', 'both', 'each', 'few', 
-        'more', 'most', 'other', 'some', 'such', 'no', 'nor', 'not', 'only', 
-        'own', 'same', 'too', 'very', 
-        
-        // Preposiciones, Adverbios y Conectores de Movimiento
-        'into', 'back', 'through', 'toward', 'towards', 'onto', 'upon', 'within', 
-        'without', 'while', 'when', 'since', 'until', 'before', 'after', 
-        
-        // Contracciónes completas y negaciones
-        'just', 'don', 'shouldn', 'isn', 'wasn', 'weren', 'haven', 
-        'hasn', 'hadn', 'won', 'shan', 'wouldn', 'couldn', 'mightn', 
-        'mustn', 'ain', 'dont', 'cant', 'wouldnt', 'im', 'hes', 'shes',
-        
-        // Formato de guion y Contratos cortos
-        'v.o.', 'vo', 'o.s.', 'os', 'cont\'d', 'ext.', 'int.', 'day', 'night', 'fade in', 'fade out', 'cont',
-        's', 't', 'm', 'll', 've', 're', 'd', 'contd', 'its', 'thats',
-        
-        // MENCIONES GENÉRICAS A PERSONAJES Y TÍTULOS
-        'man', 'woman', 'guy', 'girl', 'boy', 'kid', 'doctor', 'mr', 'mrs', 'ms', 
-        'officer', 'agent', 'young', 'old', 'soldier', 'detective', 'cop'
-    ]);
+    const stopwords_en = new Set(['the', 'a', 'an', 'and', 'or', 'but', 'nor', 'yet', 'so', 'for', 'of', 'to', 'in', 'on', 'at', 'with', 'from', 'by', 'about', 'as', 'is', 'am', 'are', 'was', 'were', 'be', 'been', 'being', 'have', 'has', 'had', 'do', 'does', 'did', 'doing', 'it', 'its', 'i', 'me', 'my', 'myself', 'you', 'your', 'yours', 'yourself', 'he', 'him', 'his', 'himself', 'she', 'her', 'hers', 'herself', 'we', 'us', 'our', 'ours', 'ourselves', 'they', 'them', 'their', 'theirs', 'themselves', 'what', 'which', 'who', 'whom', 'this', 'that', 'these', 'those', 'can', 'will', 'would', 'should', 'could', 'may', 'might', 'must', 'up', 'down', 'out', 'off', 'over', 'under', 'again', 'further', 'then', 'once', 'here', 'there', 'when', 'where', 'why', 'how', 'all', 'any', 'both', 'each', 'few', 'more', 'most', 'other', 'some', 'such', 'no', 'nor', 'not', 'only', 'own', 'same', 'too', 'very', 'into', 'back', 'through', 'toward', 'towards', 'onto', 'upon', 'within', 'without', 'while', 'when', 'since', 'until', 'before', 'after', 'just', 'don', 'shouldn', 'isn', 'wasn', 'weren', 'haven', 'hasn', 'hadn', 'won', 'shan', 'wouldn', 'couldn', 'mightn', 'mustn', 'ain', 'dont', 'cant', 'wouldnt', 'im', 'hes', 'shes', 'v.o.', 'vo', 'o.s.', 'os', 'cont\'d', 'ext.', 'int.', 'day', 'night', 'fade in', 'fade out', 'cont', 's', 't', 'm', 'll', 've', 're', 'd', 'contd', 'its', 'thats', 'man', 'woman', 'guy', 'girl', 'boy', 'kid', 'doctor', 'mr', 'mrs', 'ms', 'officer', 'agent', 'young', 'old', 'soldier', 'detective', 'cop']);
 
     function getStopwords(idioma) {
         return idioma === 'en' ? stopwords_en : stopwords_es;
@@ -78,31 +24,21 @@ document.addEventListener('DOMContentLoaded', () => {
     // --- FUNCIÓN DE LIMPIEZA DE FORMATO (SIN CAMBIOS) ---
     function limpiarTextoGuion(texto) {
         let textoLimpio = texto;
-
-        // 1. Reemplazar saltos de línea extraños (comunes en conversión DOCX a TXT)
         textoLimpio = textoLimpio.replace(/(\r\n|\n|\r){3,}/g, '\n\n'); 
-
-        // 2. Eliminar márgenes blancos y caracteres nulos
         textoLimpio = textoLimpio.trim();
         textoLimpio = textoLimpio.replace(/\0/g, ''); 
-
-        // 3. Normalizar espacios
         textoLimpio = textoLimpio.replace(/[ \t]{2,}/g, ' '); 
-
-        // 4. Intentar separar nombres de personajes (en MAYÚSCULAS) que podrían haberse pegado al texto de acción/diálogo
         textoLimpio = textoLimpio.replace(/([A-Z.]{3,})([^A-Z.\n\r])/g, (match, p1, p2) => {
             if (p1.length > 5 && !p1.endsWith('.')) {
                  return p1 + '\n' + p2;
             }
             return match; 
         });
-
-
         return textoLimpio;
     }
 
 
-    // --- LÓGICA DE LECTURA DE ARCHIVOS (MAMMOTH) ---
+    // --- LÓGICA DE LECTURA DE ARCHIVOS (MAMMOTH - REVISADO) ---
     archivoGuion.addEventListener('change', (event) => {
         const file = event.target.files[0];
         if (!file) {
@@ -125,8 +61,10 @@ document.addEventListener('DOMContentLoaded', () => {
         } 
         
         else if (fileName.endsWith('.docx')) {
+            // VERIFICACIÓN MEJORADA DE MAMMOTH
             if (typeof mammoth === 'undefined') {
-                alert('Error: La librería Mammoth.js no se ha cargado correctamente. No se puede leer el archivo .docx.');
+                alert('ERROR: La librería Mammoth.js no está disponible. No se puede leer el archivo .docx. Asegúrate de que el script Mammoth.js esté cargado correctamente en index.html.');
+                console.error('Mammoth.js no está definido. La carga de .docx fallará.');
                 archivoGuion.value = '';
                 return;
             }
@@ -136,14 +74,15 @@ document.addEventListener('DOMContentLoaded', () => {
             reader.onload = (e) => {
                 const arrayBuffer = e.target.result;
                 
+                // INTENTO DE CONVERSIÓN CON CAPTURA DE ERROR EXPLÍCITA
                 mammoth.extractRawText({ arrayBuffer: arrayBuffer })
                     .then(result => {
                         textoGuion.value = limpiarTextoGuion(result.value); 
                         alert(`Archivo "${file.name}" (.docx) cargado y limpiado con éxito.`);
                     })
                     .catch(err => {
-                        console.error('Error de Mammoth:', err);
-                        alert('Error al procesar el archivo .docx. Asegúrate de que no esté corrupto o cifrado.');
+                        console.error('Error de conversión DOCX (Mammoth):', err);
+                        alert(`Error al procesar el archivo .docx: ${err.message}. Intenta convertirlo a .txt primero.`);
                     })
                     .finally(() => {
                         archivoGuion.value = '';
@@ -151,7 +90,7 @@ document.addEventListener('DOMContentLoaded', () => {
             };
             
             reader.onerror = () => {
-                alert('Error al leer el archivo .docx.');
+                alert('Error al leer el array buffer del .docx.');
             };
 
             reader.readAsArrayBuffer(file); 
@@ -163,7 +102,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
     
-    // --- LÓGICA DE ANÁLISIS PRINCIPAL ---
+    // --- LÓGICA DE ANÁLISIS PRINCIPAL (SIN CAMBIOS FUNCIONALES) ---
     analizarBtn.addEventListener('click', (e) => {
         e.preventDefault(); 
 
@@ -188,21 +127,19 @@ document.addEventListener('DOMContentLoaded', () => {
 
 
     function analizarTextoGuion(texto, idioma) {
+        // ... (Contenido de la función analizarTextoGuion permanece sin cambios) ...
         const stopwords = getStopwords(idioma);
         const lineas = texto.split('\n');
 
-        // Almacenar el texto completo de cada diálogo para el análisis posterior
         const dialogosPorPersonaje = {};
-        let textoTotalDialogos = ''; // NUEVO: Para almacenar SOLO el texto de los diálogos
+        let textoTotalDialogos = '';
         
-        // --- 1. Análisis de Personajes Recurrentes y Diálogos ---
         const frecuenciaPersonajes = {};
         let personajeActual = null;
         
         lineas.forEach((linea, index) => {
             const lineaTrim = linea.trim();
             
-            // 1.1 Identificación de Personaje (MAYÚSCULAS)
             const esPersonaje = lineaTrim === lineaTrim.toUpperCase() && lineaTrim.length > 2 && !/\d/.test(lineaTrim) && 
                                 !['EXT.', 'INT.', 'FADE IN', 'CUT TO', 'DÍA', 'NOCHE', 'TRANSICIÓN', 'FADE OUT', 'APERTURA', 'CIERRE', 'TITLE', 'CONT.'].some(c => lineaTrim.startsWith(c));
 
@@ -213,24 +150,19 @@ document.addEventListener('DOMContentLoaded', () => {
                     dialogosPorPersonaje[personajeActual] = [];
                 }
             } 
-            // 1.2 Extracción de Diálogo
             else if (personajeActual && lineaTrim.length > 0) {
                 
                 const dialogoActual = dialogosPorPersonaje[personajeActual].length > 0 ? dialogosPorPersonaje[personajeActual][dialogosPorPersonaje[personajeActual].length - 1] : null;
                 
-                // Excluir paréntesis descriptivos (Wryly), si están presentes, del contenido del diálogo
                 let dialogoLimpio = lineaTrim.replace(/\([^)]*\)/g, '').trim(); 
 
                 if (dialogoActual && dialogoActual.end === index - 1) {
-                     // Continuar el diálogo anterior (diálogo multi-línea)
                      dialogoActual.texto += (dialogoActual.texto.length > 0 ? ' ' : '') + dialogoLimpio;
                      dialogoActual.end = index;
                 } else if (!dialogoActual || (dialogoActual && dialogoActual.end < index - 1)) {
-                    // Nuevo diálogo
                     dialogosPorPersonaje[personajeActual].push({ texto: dialogoLimpio, start: index, end: index });
                 }
                 
-                // ACUMULAR SOLO TEXTO DE DIÁLOGO
                 textoTotalDialogos += ' ' + dialogoLimpio;
 
             } else if (lineaTrim === '' || (!esPersonaje && lineaTrim.length > 0)) {
@@ -259,7 +191,6 @@ document.addEventListener('DOMContentLoaded', () => {
         
         let textoLimpioAnalisis = textoTotalDialogos.toLowerCase();
         
-        // Limpieza de puntuación y contracciones en el texto de diálogo
         textoLimpioAnalisis = textoLimpioAnalisis.replace(/['`‘’]/g, ' ');
         textoLimpioAnalisis = textoLimpioAnalisis.replace(/[\.,\/#!$%\^&\*;:{}=\-_~()¡¿?""]/g, ' ');
         
@@ -282,7 +213,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
 
         // --- 3. Análisis de Oraciones Clave (Usa SOLO textoTotalDialogos) ---
-        // Usar textoTotalDialogos para buscar solo frases de diálogo
         const oraciones = textoTotalDialogos.match(/[^\.!\?]+[\.!\?]/g) || [];
         const oracionesClavePonderadas = [];
 
@@ -308,7 +238,7 @@ document.addEventListener('DOMContentLoaded', () => {
             .slice(0, 5);
 
 
-        // --- 4. Extracción de Diálogos Clave Ponderada (Sin Cambios en Lógica de Scoring) ---
+        // --- 4. Extracción de Diálogos Clave Ponderada ---
         const dialogosClave = [];
         const topPersonajesNombres = topPersonajes.map(([nombre]) => nombre);
         
@@ -317,7 +247,6 @@ document.addEventListener('DOMContentLoaded', () => {
             const dialogosPonderados = [];
 
             dialogos.forEach(d => {
-                // d.texto ya ha sido limpiado de paréntesis descriptivos en el Paso 1
                 const dialogoTexto = d.texto.toLowerCase();
                 const longitud = dialogoTexto.length;
                 
@@ -410,7 +339,6 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    // Funcionalidad de Sugerencias (Simulada)
     generarSugerenciasBtn.addEventListener('click', () => {
         textoSugerencias.innerHTML = '<p>Analizando el texto con la IA... ⏳</p>';
 
