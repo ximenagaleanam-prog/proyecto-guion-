@@ -11,6 +11,12 @@ document.addEventListener('DOMContentLoaded', () => {
     const listaOracionesClave = document.getElementById('lista-oraciones-clave');
     const listaDialogosClave = document.getElementById('lista-dialogos-clave'); 
 
+    // --- FUNCIÓN PARA ESCAPAR CARACTERES ESPECIALES EN REGEXP ---
+    function escapeRegExp(string) {
+        // Escapa caracteres especiales: [ \ ^ $ . | ? * + ( )
+        return string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    }
+
     // --- LISTAS DE STOPWORDS (Completa para ES/EN) ---
     const stopwords_es = new Set([
         'el', 'la', 'los', 'las', 'un', 'una', 'unos', 'unas', 
@@ -99,13 +105,11 @@ document.addEventListener('DOMContentLoaded', () => {
     
     // =========================================================
     // IMPLEMENTACIÓN DE AUTO-LIMPIEZA AL PEGAR O ESCRIBIR
-    // Esto asegura que el texto introducido manualmente esté limpio
     // =========================================================
     textoGuion.addEventListener('input', () => {
         const textoActual = textoGuion.value;
         const textoLimpio = limpiarTextoGuion(textoActual);
         
-        // Solo actualiza si la limpieza hizo un cambio (evita saltos de cursor)
         if (textoActual !== textoLimpio) {
             textoGuion.value = textoLimpio;
         }
@@ -135,7 +139,6 @@ document.addEventListener('DOMContentLoaded', () => {
         } 
         
         else if (fileName.endsWith('.docx')) {
-            // VERIFICACIÓN DE MAMMOTH
             if (typeof mammoth === 'undefined') {
                 alert('ERROR: La librería Mammoth.js no está disponible. Asegúrate de que el script Mammoth.js esté cargado en index.html.');
                 archivoGuion.value = '';
@@ -150,7 +153,6 @@ document.addEventListener('DOMContentLoaded', () => {
                 mammoth.extractRawText({ arrayBuffer: arrayBuffer })
                     .then(result => {
                         
-                        // --- DEBUG: IMPRIME EL TEXTO CRUDO DE MAMMOTH ---
                         console.log("--- DEBUG: Resultado crudo de Mammoth ---");
                         console.log(result.value.substring(0, 500) + (result.value.length > 500 ? '...' : ''));
                         console.log("---------------------------------------");
@@ -198,7 +200,6 @@ document.addEventListener('DOMContentLoaded', () => {
             return;
         }
 
-        // El texto ya está limpio gracias al event listener 'input', pero lo limpiamos una vez más por seguridad.
         guion = limpiarTextoGuion(guion);
         textoGuion.value = guion; 
 
@@ -225,7 +226,6 @@ document.addEventListener('DOMContentLoaded', () => {
         lineas.forEach((linea, index) => {
             const lineaTrim = linea.trim();
             
-            // Criterio de personaje: TODO EN MAYÚSCULAS, más de 2 caracteres, sin números, y no es un encabezado de guion
             const esPersonaje = lineaTrim === lineaTrim.toUpperCase() && lineaTrim.length > 2 && !/\d/.test(lineaTrim) && 
                                 !['EXT.', 'INT.', 'FADE IN', 'CUT TO', 'DÍA', 'NOCHE', 'TRANSICIÓN', 'FADE OUT', 'APERTURA', 'CIERRE', 'TITLE', 'CONT.'].some(c => lineaTrim.startsWith(c));
 
@@ -242,20 +242,16 @@ document.addEventListener('DOMContentLoaded', () => {
                 
                 let dialogoLimpio = lineaTrim.replace(/\([^)]*\)/g, '').trim(); 
 
-                // Si la línea actual es una continuación del diálogo anterior
                 if (dialogoActual && dialogoActual.end === index - 1) {
                      dialogoActual.texto += (dialogoActual.texto.length > 0 ? ' ' : '') + dialogoLimpio;
                      dialogoActual.end = index;
-                } 
-                // Si es un nuevo diálogo
-                else if (!dialogoActual || (dialogoActual && dialogoActual.end < index - 1)) {
+                } else if (!dialogoActual || (dialogoActual && dialogoActual.end < index - 1)) {
                     dialogosPorPersonaje[personajeActual].push({ texto: dialogoLimpio, start: index, end: index });
                 }
                 
                 textoTotalDialogos += ' ' + dialogoLimpio;
 
             } else if (lineaTrim === '' || (!esPersonaje && lineaTrim.length > 0)) {
-                // Si encontramos una línea en blanco o acción/descripción, el diálogo del personaje termina
                 personajeActual = null;
             }
         });
@@ -264,7 +260,6 @@ document.addEventListener('DOMContentLoaded', () => {
             .sort(([, a], [, b]) => b - a)
             .slice(0, 5);
         
-        // Crea un set de nombres de personajes para excluir estas palabras del análisis temático.
         const personajesParaFiltrar = new Set();
         Object.keys(frecuenciaPersonajes).forEach(name => {
             const lowerName = name.toLowerCase();
@@ -282,7 +277,6 @@ document.addEventListener('DOMContentLoaded', () => {
         
         let textoLimpioAnalisis = textoTotalDialogos.toLowerCase();
         
-        // Limpieza de puntuación para el conteo de palabras
         textoLimpioAnalisis = textoLimpioAnalisis.replace(/['`‘’]/g, ' ');
         textoLimpioAnalisis = textoLimpioAnalisis.replace(/[\.,\/#!$%\^&\*;:{}=\-_~()¡¿?""]/g, ' ');
         
@@ -305,7 +299,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
 
         // --- 3. Análisis de Oraciones Clave (USANDO SOLO DIÁLOGOS) ---
-        // Intenta dividir el texto en oraciones
         const oraciones = textoTotalDialogos.match(/[^\.!\?]+[\.!\?]/g) || [];
         const oracionesClavePonderadas = [];
 
@@ -317,11 +310,8 @@ document.addEventListener('DOMContentLoaded', () => {
             const longitud = oracionLimpia.split(/\s+/).length;
             
             let score = 0;
-            // Ponderación basada en palabras clave
             score += top5Palabras.filter(word => oracionLimpia.includes(word)).length;
-            // Ponderación basada en intensidad
             if (oracion.includes('!') || oracion.includes('?')) score += 2;
-            // Ponderación basada en complejidad
             if (longitud > 15) score += 1; 
 
             if (score >= 3) {
@@ -334,11 +324,10 @@ document.addEventListener('DOMContentLoaded', () => {
             .slice(0, 5);
 
 
-        // --- 4. Extracción de Diálogos Clave Ponderada ---
+        // --- 4. Extracción de Diálogos Clave Ponderada (CORRECCIÓN DE REGEXP APLICADA AQUÍ) ---
         const dialogosClave = [];
         const topPersonajesNombres = topPersonajes.map(([nombre]) => nombre);
         
-        // Solo analiza los diálogos de los 2 personajes principales
         topPersonajesNombres.slice(0, 2).forEach(personaje => {
             const dialogos = dialogosPorPersonaje[personaje] || [];
             const dialogosPonderados = [];
@@ -349,7 +338,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 
                 let scorePalabrasClave = 0;
                 top5Palabras.forEach(keyword => {
-                    const regex = new RegExp(`\\b${keyword}\\b`, 'g');
+                    const safeKeyword = escapeRegExp(keyword); // APLICAR ESCAPE
+                    const regex = new RegExp(`\\b${safeKeyword}\\b`, 'g'); // CONSTRUCCIÓN DE REGEXP SEGURA
                     const matches = dialogoTexto.match(regex);
                     if (matches) {
                         scorePalabrasClave += matches.length;
