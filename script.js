@@ -71,18 +71,23 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
 
-    // --- FUNCIÓN DE LIMPIEZA DE FORMATO ---
+    // --- FUNCIÓN DE LIMPIEZA DE FORMATO (ULTRA-ROBUSTA) ---
     function limpiarTextoGuion(texto) {
         let textoLimpio = texto;
 
-        // Normalizar saltos de línea y eliminar espacios múltiples
-        textoLimpio = textoLimpio.replace(/(\r\n|\n|\r){3,}/g, '\n\n'); 
-        textoLimpio = textoLimpio.trim();
-        textoLimpio = textoLimpio.replace(/\0/g, ''); 
-        textoLimpio = textoLimpio.replace(/[ \t]{2,}/g, ' '); 
+        // 1. Eliminar caracteres Unicode invisibles/cero (problema común de OCR/PDF/copiar-pegar)
+        textoLimpio = textoLimpio.replace(/[\0\uFEFF\u200B-\u200D\u2060\u202F\u3000]/g, ''); 
 
-        // Intentar separar las líneas de personaje de las líneas de acción si están pegadas
-        textoLimpio = textoLimpio.replace(/([A-Z.]{3,})([^A-Z.\n\r])/g, (match, p1, p2) => {
+        // 2. Normalizar saltos de línea y espacios
+        textoLimpio = textoLimpio.replace(/\r\n|\r/g, '\n'); // Convertir todos los saltos a \n
+        textoLimpio = textoLimpio.replace(/\t/g, '    '); // Convertir tabs a espacios
+        textoLimpio = textoLimpio.replace(/[ ]{2,}/g, ' '); // Reducir múltiples espacios a uno
+        textoLimpio = textoLimpio.replace(/(\n[ \t]*){3,}/g, '\n\n'); // Reducir múltiples saltos de línea (conservando párrafos)
+
+        textoLimpio = textoLimpio.trim(); 
+
+        // 3. Intentar separar las líneas de personaje de las líneas de acción si están pegadas
+        textoLimpio = textoLimpio.replace(/([A-Z.]{3,})([^A-Z.\n])/g, (match, p1, p2) => {
             if (p1.length > 5 && !p1.endsWith('.')) {
                  return p1 + '\n' + p2;
             }
@@ -107,7 +112,7 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
 
-    // --- LÓGICA DE LECTURA DE ARCHIVOS (MAMMOTH - REVISADA CON MEJOR MENSAJE) ---
+    // --- LÓGICA DE LECTURA DE ARCHIVOS (MAMMOTH) ---
     archivoGuion.addEventListener('change', (event) => {
         const file = event.target.files[0];
         if (!file) {
@@ -193,6 +198,7 @@ document.addEventListener('DOMContentLoaded', () => {
             return;
         }
 
+        // El texto ya está limpio gracias al event listener 'input', pero lo limpiamos una vez más por seguridad.
         guion = limpiarTextoGuion(guion);
         textoGuion.value = guion; 
 
@@ -219,6 +225,7 @@ document.addEventListener('DOMContentLoaded', () => {
         lineas.forEach((linea, index) => {
             const lineaTrim = linea.trim();
             
+            // Criterio de personaje: TODO EN MAYÚSCULAS, más de 2 caracteres, sin números, y no es un encabezado de guion
             const esPersonaje = lineaTrim === lineaTrim.toUpperCase() && lineaTrim.length > 2 && !/\d/.test(lineaTrim) && 
                                 !['EXT.', 'INT.', 'FADE IN', 'CUT TO', 'DÍA', 'NOCHE', 'TRANSICIÓN', 'FADE OUT', 'APERTURA', 'CIERRE', 'TITLE', 'CONT.'].some(c => lineaTrim.startsWith(c));
 
@@ -235,16 +242,20 @@ document.addEventListener('DOMContentLoaded', () => {
                 
                 let dialogoLimpio = lineaTrim.replace(/\([^)]*\)/g, '').trim(); 
 
+                // Si la línea actual es una continuación del diálogo anterior
                 if (dialogoActual && dialogoActual.end === index - 1) {
                      dialogoActual.texto += (dialogoActual.texto.length > 0 ? ' ' : '') + dialogoLimpio;
                      dialogoActual.end = index;
-                } else if (!dialogoActual || (dialogoActual && dialogoActual.end < index - 1)) {
+                } 
+                // Si es un nuevo diálogo
+                else if (!dialogoActual || (dialogoActual && dialogoActual.end < index - 1)) {
                     dialogosPorPersonaje[personajeActual].push({ texto: dialogoLimpio, start: index, end: index });
                 }
                 
                 textoTotalDialogos += ' ' + dialogoLimpio;
 
             } else if (lineaTrim === '' || (!esPersonaje && lineaTrim.length > 0)) {
+                // Si encontramos una línea en blanco o acción/descripción, el diálogo del personaje termina
                 personajeActual = null;
             }
         });
@@ -253,6 +264,7 @@ document.addEventListener('DOMContentLoaded', () => {
             .sort(([, a], [, b]) => b - a)
             .slice(0, 5);
         
+        // Crea un set de nombres de personajes para excluir estas palabras del análisis temático.
         const personajesParaFiltrar = new Set();
         Object.keys(frecuenciaPersonajes).forEach(name => {
             const lowerName = name.toLowerCase();
@@ -270,6 +282,7 @@ document.addEventListener('DOMContentLoaded', () => {
         
         let textoLimpioAnalisis = textoTotalDialogos.toLowerCase();
         
+        // Limpieza de puntuación para el conteo de palabras
         textoLimpioAnalisis = textoLimpioAnalisis.replace(/['`‘’]/g, ' ');
         textoLimpioAnalisis = textoLimpioAnalisis.replace(/[\.,\/#!$%\^&\*;:{}=\-_~()¡¿?""]/g, ' ');
         
@@ -292,6 +305,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
 
         // --- 3. Análisis de Oraciones Clave (USANDO SOLO DIÁLOGOS) ---
+        // Intenta dividir el texto en oraciones
         const oraciones = textoTotalDialogos.match(/[^\.!\?]+[\.!\?]/g) || [];
         const oracionesClavePonderadas = [];
 
@@ -303,8 +317,11 @@ document.addEventListener('DOMContentLoaded', () => {
             const longitud = oracionLimpia.split(/\s+/).length;
             
             let score = 0;
+            // Ponderación basada en palabras clave
             score += top5Palabras.filter(word => oracionLimpia.includes(word)).length;
+            // Ponderación basada en intensidad
             if (oracion.includes('!') || oracion.includes('?')) score += 2;
+            // Ponderación basada en complejidad
             if (longitud > 15) score += 1; 
 
             if (score >= 3) {
@@ -321,6 +338,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const dialogosClave = [];
         const topPersonajesNombres = topPersonajes.map(([nombre]) => nombre);
         
+        // Solo analiza los diálogos de los 2 personajes principales
         topPersonajesNombres.slice(0, 2).forEach(personaje => {
             const dialogos = dialogosPorPersonaje[personaje] || [];
             const dialogosPonderados = [];
