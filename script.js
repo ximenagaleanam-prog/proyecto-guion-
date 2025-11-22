@@ -1,4 +1,7 @@
 document.addEventListener('DOMContentLoaded', () => {
+    // =========================================================
+    // DECLARACIÓN DE VARIABLES (¡CRÍTICO! Asegura que los IDs se encuentren)
+    // =========================================================
     const textoGuion = document.getElementById('texto-guion');
     const archivoGuion = document.getElementById('archivo-guion');
     const idiomaSelector = document.getElementById('idioma-analisis');
@@ -13,7 +16,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // =========================================================
     // CONFIGURACIÓN DEL ENDPOINT DE VERCEL/GROQ
-    // Esta es la ruta relativa a la función Serverless (api/server.js)
     // =========================================================
     const BACKEND_ENDPOINT = "/api/server/api/analisis-ia"; 
 
