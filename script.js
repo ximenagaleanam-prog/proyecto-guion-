@@ -12,29 +12,25 @@ document.addEventListener('DOMContentLoaded', () => {
     const listaDialogosClave = document.getElementById('lista-dialogos-clave'); 
 
     // =========================================================
-    // CONFIGURACIÓN DE LA API DE IA
-    // ADVERTENCIA: Esta clave NO debe ser expuesta en un entorno de producción real (web pública). 
-    // Para producción, la llamada DEBE hacerse a través de un servidor (backend).
+    // CONFIGURACIÓN DEL ENDPOINT DE VERCEL/GROQ
+    // Vercel expone la función api/server.js a través de esta ruta relativa.
     // =========================================================
-    const YOUR_GEMINI_API_KEY = "TU_CLAVE_API_DE_GEMINI"; 
-    const GEMINI_API_ENDPOINT = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=";
+    const BACKEND_ENDPOINT = "/api/server/api/analisis-ia"; 
+
+    // --- LISTAS DE STOPWORDS (Palabras a ignorar) ---
+    const stopwords_es = new Set(['el', 'la', 'los', 'y', 'de', 'a', 'en', 'por', 'con', 'que', 'se', 'es', 'un', 'una', 'sus', 'mi', 'tu', 'v.o.', 'vo', 'o.s.', 'os', 'cont.', 's', 't', 'd', 'm', 'll', 've', 're', 'cut to', 'fade out', 'hombre', 'mujer', 'chico', 'chica', 'si', 'no', 'le', 'lo', 'su', 'es', 'son', 'al', 'del']);
+    const stopwords_en = new Set(['the', 'a', 'an', 'and', 'or', 'but', 'of', 'to', 'in', 'on', 'at', 'with', 'i', 'me', 'my', 'you', 'your', 'he', 'him', 'his', 'she', 'her', 'hers', 'it', 'v.o.', 'vo', 'o.s.', 'os', 'cont\'d', 's', 't', 'm', 'll', 've', 're', 'd', 'contd', 'its', 'thats', 'cut to', 'fade to', 'man', 'woman', 'guy', 'girl', 'boy', 'kid', 'doctor', 'mr', 'mrs', 'ms', 'if', 'not', 'we', 'us', 'they', 'them', 'is', 'are', 'was', 'were']);
+
+    function getStopwords(idioma) {
+        return idioma === 'en' ? stopwords_en : stopwords_es;
+    }
 
     // --- FUNCIÓN PARA ESCAPAR CARACTERES ESPECIALES EN REGEXP ---
     function escapeRegExp(string) {
         return string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
     }
 
-    // --- LISTAS DE STOPWORDS (Omitidas por brevedad, asume que están aquí) ---
-    // NOTA: El código completo incluye las listas de stopwords que ya tenías.
-    const stopwords_es = new Set(['el', 'la', 'los', 'y', 'de', 'a', 'en', 'por', 'con', 'que', 'se', 'es', 'un', 'una', 'sus', 'mi', 'tu', 'v.o.', 'vo', 'o.s.', 'os', 'cont.', 's', 't', 'd', 'm', 'll', 've', 're', 'cut to', 'fade out', 'hombre', 'mujer', 'chico', 'chica']);
-    const stopwords_en = new Set(['the', 'a', 'an', 'and', 'or', 'but', 'of', 'to', 'in', 'on', 'at', 'with', 'i', 'me', 'my', 'you', 'your', 'he', 'him', 'his', 'she', 'her', 'hers', 'it', 'v.o.', 'vo', 'o.s.', 'os', 'cont\'d', 's', 't', 'm', 'll', 've', 're', 'd', 'contd', 'its', 'thats', 'cut to', 'fade to', 'man', 'woman', 'guy', 'girl', 'boy', 'kid', 'doctor', 'mr', 'mrs', 'ms']);
-
-    function getStopwords(idioma) {
-        return idioma === 'en' ? stopwords_en : stopwords_es;
-    }
-
-
-    // --- FUNCIÓN DE LIMPIEZA DE FORMATO (ULTRA-ROBUSTA) ---
+    // --- FUNCIÓN DE LIMPIEZA DE FORMATO (ROBUSTA) ---
     function limpiarTextoGuion(texto) {
         let textoLimpio = texto;
         textoLimpio = textoLimpio.replace(/[\0\uFEFF\u200B-\u200D\u2060\u202F\u3000]/g, ''); 
@@ -43,7 +39,10 @@ document.addEventListener('DOMContentLoaded', () => {
         textoLimpio = textoLimpio.replace(/[ ]{2,}/g, ' '); 
         textoLimpio = textoLimpio.replace(/(\n[ \t]*){3,}/g, '\n\n'); 
         textoLimpio = textoLimpio.trim(); 
+        
+        // Intenta separar líneas que parecen un nombre de personaje pegado a la acción
         textoLimpio = textoLimpio.replace(/([A-Z.]{3,})([^A-Z.\n])/g, (match, p1, p2) => {
+            // Solo si tiene más de 5 letras y no termina con punto (evita abreviaciones)
             if (p1.length > 5 && !p1.endsWith('.')) {
                  return p1 + '\n' + p2;
             }
@@ -53,71 +52,35 @@ document.addEventListener('DOMContentLoaded', () => {
     }
     
     // =========================================================
-    // LÓGICA DE GENERACIÓN DE ANÁLISIS CUALITATIVO (VÍA API SIMULADA)
+    // LÓGICA DE GENERACIÓN DE ANÁLISIS CUALITATIVO (VÍA SERVERLESS FUNCTION)
     // =========================================================
     async function generarAnalisisCualitativo(guion, analisisCuantitativo) {
-        // Bloque de advertencia si la clave no está configurada
-        if (YOUR_GEMINI_API_KEY === "TU_CLAVE_API_DE_GEMINI") {
-            return `
-                <p class="nota">⚠️ **Integración No Activa:** Para obtener un análisis real, debes obtener una clave API de Gemini y reemplazar <code>"TU_CLAVE_API_DE_GEMINI"</code> en <code>script.js</code>. </p>
-                
-                <h3>Análisis Cualitativo Solicitado (Simulación):</h3>
-                <p>El *prompt* enviado a la IA incluyó el guion y los siguientes datos cuantitativos para enriquecer el feedback:</p>
-                <ul>
-                    <li><strong>Personajes Principales:</strong> ${analisisCuantitativo.topPersonajes.map(p => p[0]).join(', ')}</li>
-                    <li><strong>Temas Clave:</strong> ${analisisCuantitativo.topPalabras.map(p => p[0]).join(', ')}</li>
-                </ul>
-                <p>La IA habría generado un informe de tres puntos sobre **Conflicto Central, Tono Dramático y Sugerencias de Desarrollo**.</p>
-                <p class="nota">Si estás usando un backend para ocultar la clave, asegúrate de que tu URL de *fetch* apunte a tu servidor.</p>
-            `;
-        }
-
-        // --- PROMPT DE INGENIERÍA PARA EL ANÁLISIS CUALITATIVO ---
-        const prompt = `
-            Eres un analista de guiones profesional. Tu tarea es analizar el siguiente guion.
-            Genera un informe cualitativo conciso y perspicaz.
-
-            1. **Conflicto Central:** Identifica el principal conflicto dramático y las fuerzas opuestas.
-            2. **Tono y Atmósfera:** Describe el tono dramático dominante (e.g., oscuro, ligero, irónico) y la atmósfera.
-            3. **Sugerencias de Desarrollo:** Basándote en la frecuencia de las palabras clave, sugiere un área que podría ser desarrollada para fortalecer la voz de los personajes principales.
-            
-            Formatea tu respuesta estrictamente en HTML, usando solo etiquetas <ul>, <li> y <p>.
-
-            ---
-            
-            **Guion (Primeros 5000 caracteres):**
-            ${guion.substring(0, 5000)}
-            
-            **Análisis Cuantitativo (para referencia):**
-            - Top Personajes: ${analisisCuantitativo.topPersonajes.map(p => `${p[0]} (${p[1]} diálogos)`).join('; ')}
-            - Palabras Clave: ${analisisCuantitativo.topPalabras.map(p => `${p[0]} (${p[1]} veces)`).join('; ')}
-        `;
-
-        // -----------------------------------------------------------
-        // ESTE BLOQUE SIMULA LA LLAMADA AL SERVIDOR/API REAL
-        // -----------------------------------------------------------
+        textoSugerencias.innerHTML = '<p>Analizando el guion con Groq... ⏳</p>';
+        
         try {
-            const response = await fetch(GEMINI_API_ENDPOINT + YOUR_GEMINI_API_KEY, {
+            const response = await fetch(BACKEND_ENDPOINT, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
-                    contents: [{ role: 'user', parts: [{ text: prompt }] }],
-                    config: { temperature: 0.7 }
+                    guion: guion,
+                    analisisCuantitativo: analisisCuantitativo // Se envían los datos cuantitativos para enriquecer el prompt
                 })
             });
 
             const data = await response.json();
 
-            if (data.candidates && data.candidates[0].content && data.candidates[0].content.parts[0].text) {
-                return data.candidates[0].content.parts[0].text;
+            if (response.ok) {
+                // El servidor devuelve el HTML generado por Groq
+                return data.analysis; 
             } else {
-                console.error("Respuesta de Gemini inesperada:", data);
-                return "<p>Error: No se pudo generar el análisis cualitativo. La respuesta de la API fue inválida o incompleta.</p>";
+                // Manejar errores del servidor
+                console.error("Error del backend:", data.error);
+                return `<p class="error-ia">🚨 Error del servidor: ${data.error || 'Fallo desconocido.'} Asegúrate de que tu clave GROQ_API_KEY esté correctamente configurada en las Variables de Entorno de Vercel.</p>`;
             }
 
         } catch (error) {
-            console.error("Error al llamar a la API de Gemini:", error);
-            return `<p>Error de conexión: Falló la llamada a la API. Asegúrate de que tu clave es correcta, tienes habilitado el acceso a la API y no hay problemas de CORS.</p>`;
+            console.error("Error de red o conexión:", error);
+            return `<p class="error-ia">🔌 Error de conexión: Falló la llamada al endpoint ${BACKEND_ENDPOINT}. Verifica la URL y el estado de tu función Serverless en Vercel.</p>`;
         }
     }
 
@@ -138,8 +101,6 @@ document.addEventListener('DOMContentLoaded', () => {
         mostrarResultados(analisisCuantitativo);
         resultadosSection.style.display = 'block';
         
-        textoSugerencias.innerHTML = '<p>Analizando el guion con la IA... ⏳</p>';
-        
         // 3. Generar Sugerencias Cualitativas usando la IA
         const sugerenciasHTML = await generarAnalisisCualitativo(guion, analisisCuantitativo);
 
@@ -150,8 +111,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
 
     // =========================================================
-    // LÓGICA DE ANÁLISIS CUANTITATIVO (Analizar, Mostrar, Listeners)
-    // Se mantiene intacta.
+    // LÓGICA DE ANÁLISIS CUANTITATIVO (Palabras, Personajes, Diálogos)
     // =========================================================
 
     // IMPLEMENTACIÓN DE AUTO-LIMPIEZA AL PEGAR O ESCRIBIR
@@ -243,41 +203,53 @@ document.addEventListener('DOMContentLoaded', () => {
         
         lineas.forEach((linea, index) => {
             const lineaTrim = linea.trim();
+            // Criterio de detección de personaje: todo en mayúsculas, más de 2 letras, no contiene números, y no es una línea de escena o transición.
             const esPersonaje = lineaTrim === lineaTrim.toUpperCase() && lineaTrim.length > 2 && !/\d/.test(lineaTrim) && 
                                 !['EXT.', 'INT.', 'FADE IN', 'CUT TO', 'DÍA', 'NOCHE', 'TRANSICIÓN', 'FADE OUT', 'APERTURA', 'CIERRE', 'TITLE', 'CONT.'].some(c => lineaTrim.startsWith(c));
 
             if (esPersonaje) {
+                // Limpia paréntesis de dirección de diálogo (ej: JOHN (O.S.))
                 personajeActual = lineaTrim.split('(')[0].trim();
                 frecuenciaPersonajes[personajeActual] = (frecuenciaPersonajes[personajeActual] || 0) + 1;
                 if (!dialogosPorPersonaje[personajeActual]) {
                     dialogosPorPersonaje[personajeActual] = [];
                 }
             } 
+            // Si hay un personaje detectado y la línea no está vacía, es diálogo
             else if (personajeActual && lineaTrim.length > 0) {
                 const dialogoActual = dialogosPorPersonaje[personajeActual].length > 0 ? dialogosPorPersonaje[personajeActual][dialogosPorPersonaje[personajeActual].length - 1] : null;
                 let dialogoLimpio = lineaTrim.replace(/\([^)]*\)/g, '').trim(); 
 
+                // Si la línea actual está contigua a la anterior, concatena el diálogo
                 if (dialogoActual && dialogoActual.end === index - 1) {
                      dialogoActual.texto += (dialogoActual.texto.length > 0 ? ' ' : '') + dialogoLimpio;
                      dialogoActual.end = index;
                 } else if (!dialogoActual || (dialogoActual && dialogoActual.end < index - 1)) {
+                    // Nuevo bloque de diálogo
                     dialogosPorPersonaje[personajeActual].push({ texto: dialogoLimpio, start: index, end: index });
                 }
                 textoTotalDialogos += ' ' + dialogoLimpio;
             } else if (lineaTrim === '' || (!esPersonaje && lineaTrim.length > 0)) {
+                // Resetea el personaje si encuentra una línea de acción o vacía grande
                 personajeActual = null;
             }
         });
 
+        // ------------------------------------------------------------------
+        // ANÁLISIS DE FRECUENCIA
+        // ------------------------------------------------------------------
+        
+        // Personajes principales
         const topPersonajes = Object.entries(frecuenciaPersonajes)
+            .filter(([name]) => name.length > 2 && name.indexOf(' ') === -1) // Filtra nombres muy cortos o que contienen espacios (podrían ser direcciones)
             .sort(([, a], [, b]) => b - a)
             .slice(0, 5);
         
+        // Crear una lista de nombres de personajes para excluirlos del conteo de palabras
         const personajesParaFiltrar = new Set();
         Object.keys(frecuenciaPersonajes).forEach(name => {
-            const lowerName = name.toLowerCase();
-            personajesParaFiltrar.add(lowerName);
-            lowerName.split(/\s+/).forEach(part => {
+            personajesParaFiltrar.add(name.toLowerCase());
+            name.toLowerCase().split(/\s+/).forEach(part => {
                 if (part.length >= 3) { personajesParaFiltrar.add(part); }
             });
         });
@@ -285,9 +257,11 @@ document.addEventListener('DOMContentLoaded', () => {
         const frecuenciaPalabras = {};
         let textoLimpioAnalisis = textoTotalDialogos.toLowerCase();
         textoLimpioAnalisis = textoLimpioAnalisis.replace(/['`‘’]/g, ' ');
+        // Quita toda la puntuación
         textoLimpioAnalisis = textoLimpioAnalisis.replace(/[\.,\/#!$%\^&\*;:{}=\-_~()¡¿?""]/g, ' ');
         
         const palabras = textoLimpioAnalisis.split(/\s+/)
+            // Filtra palabras cortas, stopwords y nombres de personajes
             .filter(word => word.length > 2 && !stopwords.has(word) && !personajesParaFiltrar.has(word));
 
         palabras.forEach(palabra => {
@@ -300,6 +274,11 @@ document.addEventListener('DOMContentLoaded', () => {
         
         const top5Palabras = topPalabras.map(([word]) => word);
 
+        // ------------------------------------------------------------------
+        // ANÁLISIS DE ORACIONES Y DIÁLOGOS CLAVE
+        // ------------------------------------------------------------------
+        
+        // 1. Oraciones Clave (ponderadas por longitud, puntuación y palabras clave)
         const oraciones = textoTotalDialogos.match(/[^\.!\?]+[\.!\?]/g) || [];
         const oracionesClavePonderadas = [];
 
@@ -308,14 +287,16 @@ document.addEventListener('DOMContentLoaded', () => {
             const longitud = oracionLimpia.split(/\s+/).length;
             let score = 0;
             score += top5Palabras.filter(word => oracionLimpia.includes(word)).length;
-            if (oracion.includes('!') || oracion.includes('?')) score += 2;
-            if (longitud > 15) score += 1; 
+            if (oracion.includes('!') || oracion.includes('?')) score += 2; // Énfasis
+            if (longitud > 15) score += 1; // Longitud mínima
             if (score >= 3) { oracionesClavePonderadas.push({ oracion: oracion.trim(), score: score }); }
         });
         
         oracionesClavePonderadas.sort((a, b) => b.score - a.score);
+        // Usar Set para garantizar unicidad y limitar a 5
         const uniqueOracionesClave = [...new Set(oracionesClavePonderadas.map(item => item.oracion))].slice(0, 5);
 
+        // 2. Diálogos Clave por Personaje
         const dialogosClave = [];
         const topPersonajesNombres = topPersonajes.map(([nombre]) => nombre);
         
@@ -334,6 +315,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     if (matches) { scorePalabrasClave += matches.length; }
                 });
 
+                // Ponderación: 3 puntos por palabra clave encontrada, más puntos por longitud
                 const relevanciaScore = (scorePalabrasClave * 3) + (longitud / 50);
 
                 if (relevanciaScore > 0) {
@@ -343,7 +325,7 @@ document.addEventListener('DOMContentLoaded', () => {
             
             const dialogosOrdenados = dialogosPonderados
                 .sort((a, b) => b.score - a.score)
-                .slice(0, 2);
+                .slice(0, 2); // Tomar solo los 2 más relevantes
                 
             dialogosOrdenados.forEach(item => {
                 dialogosClave.push({ personaje: item.personaje, dialogo: item.texto.substring(0, 250) + (item.texto.length > 250 ? '...' : '') });
@@ -354,34 +336,44 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function mostrarResultados(analisis) {
+        // Limpiar resultados anteriores
         listaPalabras.innerHTML = '';
         listaPersonajes.innerHTML = '';
         listaOracionesClave.innerHTML = '';
         listaDialogosClave.innerHTML = ''; 
 
+        // Mostrar Palabras Clave
         analisis.topPalabras.forEach(([palabra, count]) => {
             const li = document.createElement('li');
             li.innerHTML = `<strong>${palabra}</strong>: ${count} veces`;
             listaPalabras.appendChild(li);
         });
 
+        // Mostrar Personajes Principales
         analisis.topPersonajes.forEach(([personaje, count]) => {
             const li = document.createElement('li');
             li.innerHTML = `<strong>${personaje}</strong>: ${count} apariciones/diálogos`;
             listaPersonajes.appendChild(li);
         });
         
+        // Mostrar Oraciones Clave
         analisis.oracionesClave.forEach(oracion => {
             const li = document.createElement('li');
             li.textContent = oracion;
             listaOracionesClave.appendChild(li);
         });
 
+        // Mostrar Diálogos Clave
         analisis.dialogosClave.forEach(item => {
             const li = document.createElement('li');
             li.innerHTML = `<strong>${item.personaje}:</strong> ${item.dialogo}`;
             listaDialogosClave.appendChild(li);
         });
-        // Manejo de errores de lista vacía omitido por brevedad, el código anterior lo maneja.
+        
+        // Manejo de listas vacías
+        if (analisis.topPalabras.length === 0) listaPalabras.innerHTML = '<li>No se encontraron palabras clave significativas.</li>';
+        if (analisis.topPersonajes.length === 0) listaPersonajes.innerHTML = '<li>No se encontraron personajes claros. Asegúrate de usar MAYÚSCULAS para los nombres.</li>';
+        if (analisis.oracionesClave.length === 0) listaOracionesClave.innerHTML = '<li>No se encontraron oraciones con suficiente peso temático.</li>';
+        if (analisis.dialogosClave.length === 0) listaDialogosClave.innerHTML = '<li>No se encontraron diálogos clave relevantes en los personajes principales.</li>';
     }
 });
