@@ -1,5 +1,5 @@
 // api/server.js
-// CÓDIGO OPTIMIZADO PARA VERCEL SERVERLESS FUNCTIONS
+// CÓDIGO OPTIMIZADO PARA VERCEL SERVERLESS FUNCTIONS (Análisis Emocional)
 
 require('dotenv').config();
 const express = require('express');
@@ -28,18 +28,26 @@ app.post('/api/analisis-ia', async (req, res) => {
     const { guion, analisisCuantitativo } = req.body;
 
     if (!guion || guion.length < 50) {
-        return res.status(400).json({ error: "Guion demasiado corto para el análisis." });
+        return res.status(400).json({ error: "Guion demasiado corto para el análisis emocional." });
     }
 
-    const prompt = `
-        Eres un analista de guiones profesional. Tu tarea es analizar el siguiente guion.
-        Genera un informe cualitativo conciso y perspicaz, utilizando el modelo Llama 3 (Groq).
+    const personajesPrincipales = analisisCuantitativo.topPersonajes.map(p => p[0]).join(', ');
+    
+    // Si no se detectaron personajes, usa una lista genérica
+    const listaPersonajes = personajesPrincipales.length > 0 ? personajesPrincipales : "el protagonista principal y el antagonista.";
 
-        1. **Conflicto Central:** Identifica el principal conflicto dramático y las fuerzas opuestas.
-        2. **Tono y Atmósfera:** Describe el tono dramático dominante (e.g., oscuro, ligero, irónico) y la atmósfera.
-        3. **Sugerencias de Desarrollo:** Basándote en la frecuencia de las palabras clave (${analisisCuantitativo.topPalabras.map(p => p[0]).join(', ')}), sugiere un área que podría ser desarrollada para fortalecer la voz de los personajes principales.
+    const prompt = `
+        Eres un crítico y analista emocional de guiones de cine. Tu tarea es analizar el tono y las emociones dominantes en los diálogos del guion provisto.
+
+        Enfócate exclusivamente en los personajes principales detectados: **${listaPersonajes}**.
+
+        Genera un informe que contenga la siguiente información:
         
-        Formatea tu respuesta estrictamente en HTML, usando solo etiquetas <ul>, <li> y <p>.
+        1. **Emoción Dominante (por Personaje):** Para los dos personajes principales, indica la emoción predominante que transmiten sus diálogos (e.g., Ira, Miedo, Ansiedad, Alegría contenida, Culpa, etc.).
+        2. **Arco Emocional:** Describe brevemente si el estado emocional de los personajes cambia significativamente a lo largo de las escenas analizadas.
+        3. **Sugerencias de Intensidad:** Sugiere un pequeño cambio que podría aumentar la tensión o el impacto emocional en un diálogo clave.
+        
+        Formatea tu respuesta estrictamente en HTML, usando encabezados de tercer nivel (<h3>), listas <ul>, <li> y párrafos <p>.
         
         ---
         
@@ -50,7 +58,7 @@ app.post('/api/analisis-ia', async (req, res) => {
         const completion = await ai.chat.completions.create({
             model: model,
             messages: [{ role: 'user', content: prompt }],
-            temperature: 0.7,
+            temperature: 0.8, // Temperatura más alta para respuestas más creativas/subjetivas (emocionales)
         });
         
         const resultText = completion.choices[0].message.content;
