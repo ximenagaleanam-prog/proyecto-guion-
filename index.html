@@ -3,20 +3,16 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>🎬 Analizador de Guiones Inteligente</title>
+    <title>🎬 Analizador de Guiones Groq</title>
     <link rel="stylesheet" href="style.css">
-    
     <script src="https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.11.0/mammoth.browser.min.js"></script> 
-    
 </head>
 <body>
-    <header>
-        <h1>🎬 Analizador de Guiones Inteligente</h1>
-        <p>Sube o pega tu guion (en formato de texto simple) para analizar palabras clave y diálogos.</p>
-    </header>
-
+    <header><h1>🎬 Analizador de Guiones Groq</h1></header>
+    
     <main>
         <section id="entrada">
+            <h2>1. Pega o Sube tu Guion</h2>
             <div class="controles">
                 <input type="file" id="archivo-guion" accept=".txt, .docx">
                 <select id="idioma-analisis">
@@ -25,26 +21,43 @@
                 </select>
                 <button id="analizar-btn">Analizar Guion</button>
             </div>
-            
-            <textarea id="texto-guion" rows="20" placeholder="Pega aquí el texto completo de tu guion. Asegúrate de que los nombres de los personajes estén en MAYÚSCULAS para una detección correcta."></textarea>
+            <textarea id="texto-guion" rows="20" placeholder="Pega aquí el guion..."></textarea>
         </section>
 
-        <hr>
-
         <section id="resultados" style="display: none;">
-            </section>
+            <h2>2. Análisis Cuantitativo</h2>
+            
+            <div class="analisis-cuantitativo">
+                
+                <h3>Apariciones/Diálogos por Personaje</h3>
+                <ul id="lista-personajes">
+                    </ul>
+                
+                <h3>Palabras Clave (Frecuencia en Diálogos)</h3>
+                <ul id="lista-palabras">
+                    </ul>
+                
+                <hr>
+                
+                <h3>Oraciones Clave (Temas)</h3>
+                <ul id="lista-oraciones-clave">
+                </ul>
 
-        <hr>
+                <h3>Diálogos Destacados</h3>
+                <ul id="lista-dialogos-clave">
+                </ul>
+                
+            </div>
+        </section>
 
         <section id="sugerencias">
-            <h2>💡 Sugerencias de la IA (Integración Gemini)</h2>
+            <h2>3. Feedback Temático de la IA</h2>
             <button id="generar-sugerencias-btn">Generar Feedback Temático</button>
             <div id="texto-sugerencias" class="feedback-box">
-                <p>Haz clic en "Generar Feedback Temático" después de analizar el guion para recibir el informe cualitativo.</p>
+                <p>Haz clic en el botón para que Groq analice los datos y genere un informe cualitativo.</p>
             </div>
         </section>
     </main>
-
     <script src="script.js"></script>
 </body>
 </html>
