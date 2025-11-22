@@ -1,6 +1,6 @@
 document.addEventListener('DOMContentLoaded', () => {
     // =========================================================
-    // DECLARACIÓN DE VARIABLES (¡CRÍTICO! Asegura que los IDs se encuentren)
+    // DECLARACIÓN DE VARIABLES (Actualizada)
     // =========================================================
     const textoGuion = document.getElementById('texto-guion');
     const archivoGuion = document.getElementById('archivo-guion');
@@ -9,8 +9,11 @@ document.addEventListener('DOMContentLoaded', () => {
     const resultadosSection = document.getElementById('resultados');
     const listaPalabras = document.getElementById('lista-palabras');
     const listaPersonajes = document.getElementById('lista-personajes');
-    const generarSugerenciasBtn = document.getElementById('generar-sugerencias-btn');
-    const textoSugerencias = document.getElementById('texto-sugerencias');
+    
+    // NUEVOS ELEMENTOS
+    const generarAnalisisEmocionalBtn = document.getElementById('generar-analisis-emocional-btn');
+    const resultadoEmocional = document.getElementById('resultado-emocional'); 
+    
     const listaOracionesClave = document.getElementById('lista-oraciones-clave');
     const listaDialogosClave = document.getElementById('lista-dialogos-clave'); 
 
@@ -47,10 +50,10 @@ document.addEventListener('DOMContentLoaded', () => {
     }
     
     // =========================================================
-    // LÓGICA DE GENERACIÓN DE ANÁLISIS CUALITATIVO (VÍA SERVERLESS FUNCTION)
+    // LÓGICA DE GENERACIÓN DE ANÁLISIS EMOCIONAL (VÍA SERVERLESS FUNCTION)
     // =========================================================
-    async function generarAnalisisCualitativo(guion, analisisCuantitativo) {
-        textoSugerencias.innerHTML = '<p>Analizando el guion con Groq... ⏳</p>';
+    async function generarAnalisisEmocional(guion, analisisCuantitativo) {
+        resultadoEmocional.innerHTML = '<p>Analizando la intensidad emocional con Groq... ⏳</p>';
         
         try {
             const response = await fetch(BACKEND_ENDPOINT, {
@@ -70,7 +73,7 @@ document.addEventListener('DOMContentLoaded', () => {
             } else {
                 // Manejar errores del servidor
                 console.error("Error del backend:", data.error);
-                return `<p class="error-ia">🚨 Error del servidor: ${data.error || 'Fallo desconocido.'} Asegúrate de que tu clave GROQ_API_KEY esté correctamente configurada en las Variables de Entorno de Vercel.</p>`;
+                return `<p class="error-ia">🚨 Error del servidor: ${data.error || 'Fallo desconocido.'} Asegúrate de que tu clave GROQ_API_KEY esté configurada en Vercel.</p>`;
             }
 
         } catch (error) {
@@ -80,30 +83,33 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
 
-    // Listener del botón para generar el feedback
-    generarSugerenciasBtn.addEventListener('click', async () => {
+    // Listener del nuevo botón para generar el análisis emocional
+    generarAnalisisEmocionalBtn.addEventListener('click', async () => {
         const guion = textoGuion.value.trim();
         if (guion.length < 50) {
-            textoSugerencias.innerHTML = '<p>El guion es demasiado corto. Se requiere más de 50 palabras para el análisis.</p>';
+            resultadoEmocional.innerHTML = '<p>El guion es demasiado corto. Se requiere más de 50 palabras para el análisis.</p>';
             return;
         }
 
+        // 1. Ejecutar Análisis Cuantitativo (Necesario para saber quiénes son los personajes principales)
         const idiomaSeleccionado = idiomaSelector.value;
         const analisisCuantitativo = analizarTextoGuion(guion, idiomaSeleccionado);
         
+        // 2. Mostrar resultados cuantitativos
         mostrarResultados(analisisCuantitativo);
         resultadosSection.style.display = 'block';
         
-        const sugerenciasHTML = await generarAnalisisCualitativo(guion, analisisCuantitativo);
+        // 3. Generar Análisis Emocional usando la IA
+        const analisisHTML = await generarAnalisisEmocional(guion, analisisCuantitativo);
 
-        textoSugerencias.innerHTML = `<div class="feedback-box">${sugerenciasHTML}</div>`;
+        resultadoEmocional.innerHTML = `<div class="feedback-box">${analisisHTML}</div>`;
 
-        textoSugerencias.scrollIntoView({ behavior: 'smooth' });
+        resultadoEmocional.scrollIntoView({ behavior: 'smooth' });
     });
 
 
     // =========================================================
-    // LÓGICA DE ANÁLISIS CUANTITATIVO
+    // LÓGICA DE ANÁLISIS CUANTITATIVO (SIN CAMBIOS)
     // =========================================================
 
     // IMPLEMENTACIÓN DE AUTO-LIMPIEZA AL PEGAR O ESCRIBIR
